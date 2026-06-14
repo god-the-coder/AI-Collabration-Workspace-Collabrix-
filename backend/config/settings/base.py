@@ -34,8 +34,16 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
 
     # Local apps
-    'apps.api.v1',
+    'api.v1',
     'django_filters',
+    'apps.files',
+    'apps.workspaces',
+    'apps.notifications',
+    'apps.projects',
+    'apps.tasks',
+    'apps.communications',
+    'apps.audit',
+    'apps.accounts',
 ]
 
 
