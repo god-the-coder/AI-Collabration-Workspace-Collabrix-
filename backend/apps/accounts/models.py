@@ -1,5 +1,7 @@
 from django.db import models
 from common.utils.models import UUIDModel, TimeStampedModel 
+from django.contrib.auth.models import AbstractUser
+# from apps.files.models import File
 
 # Create your models here.
 class ThemeChoices(models.TextChoices):
@@ -12,31 +14,19 @@ class LanguageChoices(models.TextChoices):
     ENGLISH = "en", "English"
 
 
-class UserModel(UUIDModel, TimeStampedModel):
-    # core identity fields
-    # id = UUIDModel.id django will automatically add the id field from the inherted model
-    email = models.EmailField(unique=True, max_length=255) 
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255)
-    username = models.CharField(max_length=255, unique=True)
-    
-    # authentication fields
-    password = models.CharField(max_length=64)
+class UserModel(UUIDModel, TimeStampedModel, AbstractUser):
+    email = models.EmailField(unique=True)
+
     is_email_verified = models.BooleanField(default=False)
-    last_login = models.DateTimeField(null=True, blank=True)
+    bio = models.TextField(blank=True, null=True)
 
-    # status fields
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    is_superuser = models.BooleanField(default=False)
-
-    # profile fields
-    # avatar_file_id = models.UUIDField(null=True, blank=True)
-    bio = models.TextField(null=True, blank=True)
-
-
-    # updated_at = TimeStampedModel.updated_at same reason as id
-    # created_at = TimeStampedModel.created_at same reason as id
+    avatar = models.ForeignKey(
+        'files.File',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="user_avatar"    
+    )
 
     def __str__(self):
         return self.username
@@ -65,6 +55,9 @@ class SessionsModel(UUIDModel):
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_active_at = models.DateTimeField(
+        auto_now=True
+    )
 
     def __str__(self):
         return f"sessions for {self.user.username}"
