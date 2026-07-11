@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import {
   UserPlus,
   MoreHorizontal,
@@ -40,11 +40,11 @@ const WORKSPACE = {
 };
 
 const WORKSPACE_TABS = [
-  { id: 'overview', label: 'Overview', active: true },
-  { id: 'projects', label: 'Projects', active: false },
-  { id: 'members', label: 'Members', active: false },
-  { id: 'chat', label: 'Chat', active: false },
-  { id: 'settings', label: 'Settings', active: false },
+  { id: 'overview', label: 'Overview', path:""},
+  { id: 'projects', label: 'Projects', path:"projects"},
+  { id: 'members', label: 'Members' ,path:"members"},
+  { id: 'chat', label: 'Chat' ,path:"chat"},
+  { id: 'settings', label: 'Settings' , path:"settings"},
 ];
 
 const OVERFLOW_MENU_ITEMS = [
@@ -232,16 +232,18 @@ function WorkspaceTabs() {
     <div className="mt-6 border-b border-zinc-200/70 dark:border-white/[0.06]">
       <nav className="-mb-px flex gap-5 overflow-x-auto">
         {WORKSPACE_TABS.map((tab) => (
-          <div
+          <NavLink
+            to={tab.path}
+            end={tab.path===""}
             key={tab.id}
-            className={`shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-1 pb-3 text-[13.5px] font-medium transition-colors ${
-              tab.active
+            className={({isActive}) => `shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-1 pb-3 text-[13.5px] font-medium transition-colors ${
+              isActive
                 ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
                 : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
             }`}
           >
             {tab.label}
-          </div>
+          </NavLink>
         ))}
       </nav>
     </div>

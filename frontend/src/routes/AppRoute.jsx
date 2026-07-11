@@ -25,6 +25,9 @@ import WorkspaceMembers from "../pages/Workspaces/WorkspaceMembers";
 
 // projects
 import Projects from "../pages/Projects/Projects";
+import Overview from "../pages/Projects/Overview";
+import ProjectLayout from "../components/layout/ProjectLayout";
+
 
 // tasks
 import Tasks from "../pages/Tasks/Tasks";
@@ -112,8 +115,29 @@ function AppRoutes() {
                         element={<WorkspaceSettings />}
                     /> */}
                 </Route>
+                
+                
+                
+                <Route
+                    path="/projects/:projectId"
+                    element={<ProjectLayout/>}
+                >
+                    <Route index element={<Overview/>}/>
+                                
+                </Route>
+
+
+                {/* <Route
+                path="/projects/overview"
+                element={<Overview/>}
+                /> */}
 
             </Route>
+
+
+            
+
+            
 
         </Routes>
     );

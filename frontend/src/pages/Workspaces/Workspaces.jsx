@@ -8,6 +8,7 @@ import {
   MessageSquare,
   FolderOpen,
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 const Workspaces = () => {
   // Dummy data for overview cards
@@ -151,7 +152,8 @@ const Workspaces = () => {
 
   // Workspace card component
   const WorkspaceCard = ({ workspace, isHovered }) => (
-    <div
+    <NavLink
+      to={":workspaceId"}
       className={`relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-300 cursor-pointer
         ${isHovered ? 'shadow-lg border-gray-300 dark:border-gray-700 -translate-y-1' : 'shadow-sm hover:shadow-md'}`}
       onMouseEnter={() => setHoveredCard(workspace.id)}
@@ -193,10 +195,10 @@ const Workspaces = () => {
         </div>
 
         {/* Health indicator */}
-        <div className={`rounded-lg p-3 text-sm font-medium flex items-center gap-2 ${getStatusStyle(workspace.status)}`}>
+        {/* <div className={`rounded-lg p-3 text-sm font-medium flex items-center gap-2 ${getStatusStyle(workspace.status)}`}>
           <div className="w-2 h-2 rounded-full bg-current opacity-60"></div>
           {workspace.health}
-        </div>
+        </div> */}
 
         {/* Activity preview */}
         <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
@@ -229,7 +231,7 @@ const Workspaces = () => {
           </span>
         </div>
       </div>
-    </div>
+    </NavLink>
   );
 
   return (
