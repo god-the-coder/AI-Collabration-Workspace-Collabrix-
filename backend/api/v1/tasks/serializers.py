@@ -3,7 +3,7 @@ from apps.tasks.models import Task
 from apps.accounts.models import UserModel
 from apps.workspaces.models import Workspace
 from apps.projects.models import Project
-from apps.tasks.models import Task
+from apps.tasks.models import Task, TaskPriorities
 
 
 class ParentTaskSerializer(serializers.ModelSerializer):
@@ -88,4 +88,62 @@ class TasksListWrapperSerializer(serializers.Serializer):
     upcoming = TasksListSerializer(many=True)
 
 
+class CreateTaskResponseSerializer(serializers.ModelSerializer):
+
+    workspace=serializers.CharField(
+        source="workspace.name"
+    )
+    created_by=serializers.CharField(
+        source="created_by.username"
+    )
+
+
+    class Meta:
+        model=Task
+        fields=[
+            "id",
+            "title",
+            "workspace",
+            "created_by",
+            "description",
+            "due_date"
+        ]
+
+
+
+class CreateTaskSerializer(serializers.Serializer):
+    workspace_id=serializers.UUIDField(
+        write_only=True
+    )
+    project_id=serializers.UUIDField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    title=serializers.CharField(
+        write_only=True,
+        max_length=255,
+        min_length=5
+    )
+    description=serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True
+    )
+    assignee_id=serializers.UUIDField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    priority=serializers.ChoiceField(
+        write_only=True,
+        choices=TaskPriorities.choices,
+        required=False,
+        default=TaskPriorities.MEDIUM
+    )
+    due_date=serializers.DateField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
 

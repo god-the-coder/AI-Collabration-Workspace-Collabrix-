@@ -1,6 +1,11 @@
-from apps.tasks.models import Task , TaskStatus
+from apps.tasks.models import Task , TaskStatus, TaskPriorities
 from django.utils import timezone
 from datetime import timedelta
+from apps.workspaces.models import Workspace, WorkspaceMember
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from apps.projects.models import Project, ProjectMember
+# from apps.accounts.models import UserModel
+from django.db import transaction
 
 class  TasksListService:
 
@@ -127,3 +132,80 @@ class  TasksListService:
         ).order_by(
             "due_date"
         )
+    
+
+class NewTaskService:
+
+    @staticmethod
+    @transaction.atomic
+    def create_task(user, validated_data):
+        
+        workspace=Workspace.objects.filter(
+            id=validated_data["workspace_id"],
+            members__user=user
+        ).first()
+
+        if workspace is None:
+            raise PermissionDenied({
+                "You don't have access of this workspace"
+            })
+        
+
+
+        
+        project_id=validated_data.get("project_id")
+        if project_id:
+            project=Project.objects.filter(
+                id=project_id,
+                workspace=workspace,
+                members__user=user
+            ).first()
+
+            if project is None:
+                raise PermissionDenied({
+                    "You don't have access of this project"
+                })
+                
+            
+        
+        assignee_id=validated_data.get("assignee_id")
+        if assignee_id:
+            
+            if project_id:
+                assignee=ProjectMember.objects.filter(
+                    project=project_id,
+                    user=assignee_id
+                ).exists()
+            else:
+                assignee=WorkspaceMember.objects.filter(
+                    user=assignee_id,
+                    workspace=workspace
+                ).exists()
+
+            if not assignee:
+                raise ValidationError({
+                    "assignee_id": "Selected user can not be assigned to this task"
+                })
+            
+            
+            
+            
+        task=Task.objects.create(
+            title=validated_data["title"],
+            created_by=user,
+            description=validated_data.get("description", ""),
+            workspace=workspace,
+            priority=validated_data["priority"],
+            due_date=validated_data.get("due_date"),
+            project=validated_data.get("project_id"),
+            assignee=validated_data.get("assignee_id")
+        ) 
+            
+
+        return task
+            
+        
+
+        
+
+
