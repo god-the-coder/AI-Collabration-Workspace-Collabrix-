@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 
-function ProtectedRoute({children}) {
+export default function ProtectedRoute({children}) {
 
     const isAuthenticated = true;
 
@@ -8,3 +8,4 @@ function ProtectedRoute({children}) {
     children:<Navigate to="/login" replace/>;
     
 }
+

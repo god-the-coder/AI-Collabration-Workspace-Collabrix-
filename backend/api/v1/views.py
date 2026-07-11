@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from common.utils.api_response import success_response
+from apps.accounts.models import UserModel
 
 
 class healthCheckView(APIView):
@@ -11,12 +12,14 @@ class healthCheckView(APIView):
 
 class profileView(APIView):
     
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
         print(request.headers)
+        user = UserModel.objects.get(username="sample")
 
         return Response({
-            "user": request.user.username
+            "user": str(user.id),
+            "id": request.user.id
         })

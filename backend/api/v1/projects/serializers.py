@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.projects.models import Project, ProjectMember
+from apps.projects.models import Project, ProjectMember, ProjectStatus
 
 
 class ProjectWorkspaceSerializer(serializers.Serializer):
@@ -69,3 +69,54 @@ class ProjectListSerializer(serializers.ModelSerializer):
             obj.members_count - 3,
             0
         )
+
+
+class CreateProjectResponseSerializer(serializers.ModelSerializer):
+
+    owner = serializers.CharField(
+        source="owner.username"
+    )
+
+    workspace = serializers.CharField(
+        source="workspace.name"
+    )
+
+    class Meta:
+        model=Project
+        fields=[
+            "id",
+            "owner",
+            "workspace",
+            "name"
+        ]
+
+class CreateProjectSerializer(serializers.Serializer):
+    workspace_id=serializers.UUIDField(write_only=True)
+    name=serializers.CharField(
+        min_length=5,
+        max_length=255,
+        write_only=True
+    )
+    description=serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True
+    )
+    start_date=serializers.DateField(
+        write_only=True
+    )
+    due_date=serializers.DateField(
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    status=serializers.ChoiceField(
+        choices=ProjectStatus.choices,
+        required=False,
+        default=ProjectStatus.PLANNING,
+        write_only=True
+    )
+    
+
+
+

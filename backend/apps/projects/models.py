@@ -48,7 +48,7 @@ class Project(UUIDModel, TimeStampedModel):
         blank=True
     )
 
-    start_date = models.DateTimeField()
+    start_date = models.DateTimeField(auto_now_add=True)
 
     due_date = models.DateTimeField(null=True, blank=True)
 

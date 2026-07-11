@@ -1,6 +1,8 @@
 from apps.projects.models import ProjectMember, Project, ProjectStatus
 from django.utils import timezone
 from django.db.models import Count, Prefetch
+from apps.workspaces.models import Workspace, WorkspaceRole
+from rest_framework.exceptions import PermissionDenied
 
 
 class ProjectsListService:
@@ -83,3 +85,36 @@ class ProjectsListService:
                 ProjectStatus.CANCELLED
             ]
         ).count()
+
+
+class NewProjectService:
+
+    @staticmethod
+    def create_project(user, validated_data):
+
+        workspace=Workspace.objects.filter(
+            id=validated_data["workspace_id"],
+            members__user=user,
+            members__role__in=[
+                WorkspaceRole.OWNER,
+                WorkspaceRole.ADMIN
+            ]
+        ).first()
+
+        if workspace is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace"
+            )
+        
+        project=Project.objects.create(
+            owner=user,
+            name=validated_data["name"],
+            description=validated_data.get("description", ""),
+            due_date=validated_data.get("due_date"),
+            workspace=workspace,
+            start_date=validated_data["start_date"],
+            status=validated_data["status"]
+        )
+
+        return project
+

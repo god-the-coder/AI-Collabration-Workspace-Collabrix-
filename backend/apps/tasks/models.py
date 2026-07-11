@@ -65,7 +65,7 @@ class Task(UUIDModel, TimeStampedModel):
         blank=True
     )
 
-    title = models.CharField(max_length=64)
+    title = models.CharField(max_length=255)
 
     description = models.TextField(null=True, blank=True)
 

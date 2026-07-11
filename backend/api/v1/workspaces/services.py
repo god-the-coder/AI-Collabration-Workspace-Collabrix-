@@ -1,6 +1,9 @@
 from apps.workspaces.models import WorkspaceMember, Invitation, InvitationStatus, Workspace
 from apps.projects.models import Project, ProjectStatus
+from apps.workspaces.models import Workspace, WorkspaceRole
+from apps.files.models import File, FileType
 from django.db.models import Count, OuterRef, Subquery, Prefetch
+from django.utils.text import slugify
 
 
 
@@ -115,4 +118,40 @@ class WorkspaceService:
         ).exclude(
             user=user
         ).distinct().count()
+
+    @staticmethod
+    def create_workspace(user, validated_data):
+
+        slug = slugify(validated_data["name"])
+        
+        workspace = Workspace.objects.create(
+            owner=user,
+            name=validated_data["name"],
+            description=validated_data.get("description", ""),
+            slug=slug
+        )
+
+
+        if "logo" in validated_data:
+            file = File.objects.create(
+                workspace=workspace,
+                uploaded_by=user,
+                original_name=validated_data["logo"].name,
+                file= validated_data["logo"],
+                mime_type= validated_data["logo"].content_type,
+                file_type=FileType.IMAGE,
+                file_size=validated_data["logo"].size
+            )
+
+            workspace.logo=file
+            workspace.save(update_fields=["logo"])
+
+        WorkspaceMember.objects.create(
+            user=user,
+            workspace=workspace,
+            role=WorkspaceRole.OWNER
+        )   
+
+
+        return workspace 
 

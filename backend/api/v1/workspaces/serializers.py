@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from apps.workspaces.models import Workspace
+from apps.accounts.models import UserModel
 
 
 class WorkspaceMemberSerializer(serializers.Serializer):
@@ -26,8 +27,8 @@ class WorkspaceMemberSerializer(serializers.Serializer):
         return f"{first}{last}"
 
 
-
 class WorkspaceListSerializer(serializers.ModelSerializer):
+
     workspace_logo = serializers.SerializerMethodField()
 
     recent_members = serializers.SerializerMethodField()
@@ -78,3 +79,45 @@ class WorkspaceListSerializer(serializers.ModelSerializer):
             obj.members_count - 3,
             0
         )
+    
+
+class CreateWorkspaceSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=True,
+        min_length=5,
+        max_length=255
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True
+    )
+    logo = serializers.FileField(required=False)
+
+
+
+
+class WorkspaceOwnerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=UserModel
+        fields=[
+            "id",
+            "username"
+        ] 
+
+class CreateWorkspaceResponseSerializer(serializers.ModelSerializer):
+
+    owner = WorkspaceOwnerSerializer(read_only=True)
+
+
+    class Meta:
+        model = Workspace
+        fields=[
+            "id",
+            "name",
+            "owner",
+            "description"
+        ]
+
+
+
+

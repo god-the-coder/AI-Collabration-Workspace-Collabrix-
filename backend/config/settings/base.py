@@ -203,7 +203,8 @@ CORS_ALLOWED_ORIGINS = [
 # SIMPLE JWT
 SIMPLE_JWT = {
 
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    # "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30), 
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30), 
 
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 
@@ -219,3 +220,12 @@ SIMPLE_JWT = {
 
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+
+# settings.py
+AUTH_USER_MODEL = "accounts.UserModel"
+
+AUTHENTICATION_BACKENDS = [
+    "apps.accounts.backends.EmailBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]

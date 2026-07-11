@@ -1,0 +1,43 @@
+Public
+├─ Landing
+├─ Login
+├─ Register
+├─ Verify Email
+├─ Forgot Password
+└─ Reset Password
+
+Workspace
+├─ Workspace Switcher
+├─ Create Workspace
+└─ Dashboard
+
+Projects
+├─ Projects List
+└─ Project Details
+
+Tasks
+├─ Tasks List
+├─ Task Board
+└─ Task Details
+
+Communication
+├─ Conversations List
+└─ Conversation View
+
+Notifications
+└─ Notification Center
+
+Members
+├─ Members Management
+├─ Invitations
+└─ Invitation Acceptance
+
+Settings
+├─ Profile
+├─ Account
+└─ Preferences
+
+System
+├─ 403
+├─ 404
+└─ 500
