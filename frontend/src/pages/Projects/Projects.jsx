@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
   FolderOpen,
   TrendingUp,
@@ -282,7 +283,8 @@ const Projects = () => {
 
   // Project card component
   const ProjectCard = ({ project, isFeatured, isHovered }) => (
-    <div
+    <NavLink
+      to={"projectId"}
       className={`border-2 rounded-xl bg-white dark:bg-gray-900 overflow-hidden transition-all duration-300 ${
         isFeatured
           ? 'border-blue-300 dark:border-blue-700 shadow-lg ring-1 ring-blue-200 dark:ring-blue-800'
@@ -378,7 +380,7 @@ const Projects = () => {
           </div>
         </div>
       </div>
-    </div>
+    </NavLink>
   );
 
   // Projects grid section
