@@ -1,10 +1,12 @@
 from apps.workspaces.models import WorkspaceMember, Invitation, InvitationStatus, Workspace
-from apps.projects.models import Project, ProjectStatus
+from apps.projects.models import Project, ProjectStatus, ProjectMember
 from apps.workspaces.models import Workspace, WorkspaceRole
 from apps.files.models import File, FileType
 from django.db.models import Count, OuterRef, Subquery, Prefetch
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
+from apps.tasks.models import Task, TaskStatus
+from django.utils import timezone
 
 
 
@@ -200,19 +202,127 @@ class WorkspaceService:
 
 class WorkspaceDetailSerivce:
 
+
+# <----------------------- overview ----------------------------->
+
     @staticmethod
     def get_overview_data(user, workspace_id):
+
+        workspace=Workspace.objects.filter(
+            members__user=user,
+            id=workspace_id
+        ).exists()
+
+        if not workspace:
+            raise PermissionDenied(
+                "You don't have access to this workspace"
+            )
+
+
         return {
-            "summary": WorkspaceDetailSerivce.get_overview_summary(user, workspace_id),
-            "active_projects": WorkspaceDetailSerivce.get_active_projects(user, workspace_id)
+            "summary": WorkspaceDetailSerivce.get_overview_summary(workspace_id),
+            "active_projects": WorkspaceDetailSerivce.get_active_projects(workspace_id)
+        }
+
+    @staticmethod
+    def get_overview_summary(workspace_id):
+        return {
+            "active_projects": WorkspaceDetailSerivce.get_active_projects_count(workspace_id),
+            "tasks_due_today": WorkspaceDetailSerivce.get_tasks_due_today_count(workspace_id),
+            "pending_reviews": WorkspaceDetailSerivce.get_pending_reviews_count(workspace_id),
+            "over_due_tasks": WorkspaceDetailSerivce.get_tasks_due_today_count(workspace_id)
         }
     
+    @staticmethod
+    def get_active_projects_count(workspace_id):
+        return Project.objects.filter(
+            workspace=workspace_id,
+            status=ProjectStatus.ACTIVE,
+            is_archived=False,
+            is_deleted=False
+        ).count()
 
     @staticmethod
-    def get_overview_summary(user, workspace_id):
-        pass
+    def get_tasks_due_today_count(workspace_id):
+        return Task.objects.filter(
+            workspace=workspace_id,
+            due_date=timezone.localdate()
+        ).exclude(
+            status__in=[
+                TaskStatus.CANCELLED,
+                TaskStatus.COMPLETED,
+            ]
+        ).count()
+    
+    @staticmethod
+    def get_pending_reviews_count(workspace_id):
+        return Task.objects.filter(
+            workspace=workspace_id,
+            status=TaskStatus.IN_REVIEW
+        ).count()
+    
+    @staticmethod
+    def get_over_due_task_count(workspace_id):
+        return Task.objects.filter(
+            workspace=workspace_id,
+            due_date__lt=timezone.localdate()
+        ).exclude(
+            status__in=[
+                TaskStatus.CANCELLED,
+                TaskStatus.COMPLETED
+            ]
+        ).count()        
 
     @staticmethod
-    def get_active_projects(user, workspace_id):
+    def get_active_projects(workspace_id):
+        project = Project.objects.filter(
+            workspace=workspace_id,
+            status=ProjectStatus.ACTIVE,
+            is_archived=False,
+            is_deleted=False,
+        ).annotate(
+            members_count=Count("members", distinct=True)
+        ).prefetch_related(
+            Prefetch(
+                "members",
+                queryset=ProjectMember.objects.select_related(
+                    "user",
+                    "user__avatar"
+                )
+            )
+        ).order_by("-updated_at")
+
+        return project
+
+
+# <---------------------- projects --------------------------->
+
+    @staticmethod
+    def get_projects_data(user, workspace_id):
+
+        has_access = Workspace.objects.filter(
+            id=workspace_id,
+            user=user
+        ).exists()
+
+        if not has_access:
+            raise PermissionDenied(
+                "You don't have permission to access this workspace."
+            )
+
+
+        return {
+            "summary": WorkspaceDetailSerivce.get_projects_summary(workspace_id),
+            # "filters": ,
+            # "projects": ,
+            # "pagination": ,
+        }
+    
+    
+    @staticmethod
+    def get_projects_summary(workspace_id):
         pass
+    
+
+  
 

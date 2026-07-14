@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.workspaces.models import Workspace
 from apps.accounts.models import UserModel
+from apps.projects.models import Project
 
 
 class WorkspaceMemberSerializer(serializers.Serializer):
@@ -159,6 +160,66 @@ class WorkspaceLayoutSerializer(serializers.ModelSerializer):
         return None
 
 
+class ProjectMemberAvatarSerializer(serializers.ModelSerializer):
+
+    avatar = serializers.SerializerMethodField()
+    initials = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserModel
+        fields = [
+            "id",
+            "username",
+            "avatar",
+            "initials",
+        ]
+
+    def get_avatar(self, obj):
+        if obj.avatar:
+            return obj.avatar.file.url
+        return None
+
+    def get_initials(self, obj):
+        first = obj.first_name[:1].upper() if obj.first_name else ""
+        last = obj.last_name[:1].upper() if obj.last_name else ""
+        return f"{first}{last}"
+
+
 class WorkspaceOverviewSerializer(serializers.ModelSerializer):
+
+    members_count=serializers.IntegerField(read_only=True)
+    members=serializers.SerializerMethodField()
+    
+    
+    class Meta:
+        model=Project
+        fields=[
+            "id",
+            "name",
+            "status",
+            "updated_at",
+            "due_date",
+            "members_count",
+            "members"
+        ]
+
+
+    def get_members(self, obj):
+        users = [
+            member.user
+            for member in obj.members.all()[:3]
+        ]
+
+        return ProjectMemberAvatarSerializer(
+            users,
+            many=True
+        ).data
+
+
+class WorkspaceProjectsSerializer(serializers.ModelSerializer):
+    pass
+
+
+class WorkspaceMembersSerializer(serializers.ModelSerializer):
     pass
 

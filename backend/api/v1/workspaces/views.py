@@ -74,6 +74,7 @@ class WorkspaceDetailAPIView(APIView):
 class WorkspaceDetailOverviewAPIView(APIView):
   
   def get(self, request, workspace_id):
+    try:
       resp=WorkspaceDetailSerivce.get_overview_data(
         user=request.user,
         workspace_id=workspace_id
@@ -81,8 +82,22 @@ class WorkspaceDetailOverviewAPIView(APIView):
 
       return Response({
         "summary": resp["summary"],
-        "active_projects": WorkspaceDetailOverviewAPIView(resp["workspace"], many=True).data
+        "active_projects": WorkspaceOverviewSerializer(resp["active_projects"], many=True).data
       })
+    except Exception as e:
+      print(type(e))
+      print(e)
+      raise
     
 
- 
+class WorkspaceDetailProjectsAPIView(APIView):
+
+  def get(self, request):
+    pass
+
+
+class WorkspaceDetailMembersAPIView(APIView):
+
+  def get(self, request):
+    pass 
+
