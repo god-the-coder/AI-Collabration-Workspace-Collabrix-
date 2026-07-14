@@ -27,6 +27,8 @@ import WorkspaceMembers from "../pages/Workspaces/WorkspaceMembers";
 import Projects from "../pages/Projects/Projects";
 import Overview from "../pages/Projects/Overview";
 import ProjectLayout from "../components/layout/ProjectLayout";
+import ProjectTasks from "../pages/Projects/ProjectTasks";
+import ProjectMembers from "../pages/Projects/ProjectMembers";
 
 
 // tasks
@@ -123,14 +125,12 @@ function AppRoutes() {
                     element={<ProjectLayout/>}
                 >
                     <Route index element={<Overview/>}/>
+
+                    <Route path="tasks" element={<ProjectTasks/>}/>
+
+                    <Route path="members" element={<ProjectMembers/>}/>
                                 
                 </Route>
-
-
-                {/* <Route
-                path="/projects/overview"
-                element={<Overview/>}
-                /> */}
 
             </Route>
 
