@@ -302,7 +302,7 @@ class WorkspaceDetailSerivce:
 
         has_access = Workspace.objects.filter(
             id=workspace_id,
-            user=user
+            members__user=user
         ).exists()
 
         if not has_access:
@@ -314,15 +314,66 @@ class WorkspaceDetailSerivce:
         return {
             "summary": WorkspaceDetailSerivce.get_projects_summary(workspace_id),
             # "filters": ,
-            # "projects": ,
+            "projects": WorkspaceDetailSerivce.get_all_projects(workspace_id),
             # "pagination": ,
         }
     
     
     @staticmethod
     def get_projects_summary(workspace_id):
-        pass
+        return {
+            "active_projects": WorkspaceDetailSerivce.get_active_projects_count(workspace_id),
+            "completed_projects": WorkspaceDetailSerivce.get_completed_projects_count(workspace_id),
+            "at_risk_projects": WorkspaceDetailSerivce.get_atrisk_projects_count(workspace_id),
+            "archived_projects": WorkspaceDetailSerivce.get_archived_projects_count(workspace_id)
+        }
     
+
+    @staticmethod
+    def get_completed_projects_count(workspace_id):
+        return Project.objects.filter(
+            workspace=workspace_id,
+            status=ProjectStatus.COMPLETED,
+            is_archived=False,
+            is_deleted=False
+        ).count()
+    
+    @staticmethod
+    def get_atrisk_projects_count(workspace_id):
+        return Project.objects.filter(
+            workspace=workspace_id,
+            status=ProjectStatus.AT_RISK,
+            is_archived=False,
+            is_deleted=False
+        ).count()
+    
+    @staticmethod
+    def get_archived_projects_count(workspace_id):
+        return Project.objects.filter(
+            workspace=workspace_id,
+            is_archived=True,
+            is_deleted=False
+        ).count()
+        
+    @staticmethod   
+    def get_all_projects(workspace_id):
+        project = Project.objects.filter(
+            workspace=workspace_id,
+            is_archived=False,
+            is_deleted=False,
+        ).annotate(
+            members_count=Count("members", distinct=True)
+        ).prefetch_related(
+            Prefetch(
+                "members",
+                queryset=ProjectMember.objects.select_related(
+                    "user",
+                    "user__avatar"
+                )
+            )
+        ).order_by("-updated_at")
+
+        return project
 
   
 

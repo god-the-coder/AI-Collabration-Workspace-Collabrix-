@@ -185,7 +185,7 @@ class ProjectMemberAvatarSerializer(serializers.ModelSerializer):
         return f"{first}{last}"
 
 
-class WorkspaceOverviewSerializer(serializers.ModelSerializer):
+class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
 
     members_count=serializers.IntegerField(read_only=True)
     members=serializers.SerializerMethodField()
@@ -197,6 +197,7 @@ class WorkspaceOverviewSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "status",
+            "description",
             "updated_at",
             "due_date",
             "members_count",
@@ -216,8 +217,8 @@ class WorkspaceOverviewSerializer(serializers.ModelSerializer):
         ).data
 
 
-class WorkspaceProjectsSerializer(serializers.ModelSerializer):
-    pass
+# class WorkspaceProjectsSerializer(serializers.ModelSerializer):
+#     pass
 
 
 class WorkspaceMembersSerializer(serializers.ModelSerializer):
