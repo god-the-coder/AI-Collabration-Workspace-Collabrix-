@@ -17,6 +17,7 @@ class ProjectStatus(models.TextChoices):
     ON_HOLD = "ON_HOLD", "On Hold"
     COMPLETED = "COMPLETED", "Completed"
     CANCELLED = "CANCELLED", "Cancelled"
+    AT_RISK = "AT_RISK", "At Risk"
 
 
 class MilestoneStatus(models.TextChoices):
