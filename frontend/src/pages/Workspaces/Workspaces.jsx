@@ -5,7 +5,6 @@ import {
   Clock,
   AlertCircle,
   Plus,
-  MessageSquare,
   FolderOpen,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -13,10 +12,10 @@ import { NavLink } from 'react-router-dom';
 const Workspaces = () => {
   // Dummy data for overview cards
   const overviewStats = [
-    { label: 'Workspaces Joined', value: '12', icon: Briefcase, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-    { label: 'Active Projects', value: '27', icon: FolderOpen, color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-    { label: 'Pending Invitations', value: '3', icon: AlertCircle, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-    { label: 'Members Across Workspaces', value: '84', icon: Users, color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+    { label: 'Workspaces Joined',             value: '12', icon: Briefcase,  color: 'bg-indigo-50  text-indigo-500  dark:bg-indigo-500/10  dark:text-indigo-400'  },
+    { label: 'Active Projects',                value: '27', icon: FolderOpen, color: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400' },
+    { label: 'Pending Invitations',             value: '3',  icon: AlertCircle, color: 'bg-amber-50   text-amber-500   dark:bg-amber-500/10   dark:text-amber-400'   },
+    { label: 'Members Across Workspaces',       value: '84', icon: Users,      color: 'bg-violet-50  text-violet-500  dark:bg-violet-500/10  dark:text-violet-400'  },
   ];
 
   // Dummy workspace data
@@ -107,45 +106,53 @@ const Workspaces = () => {
     },
   ];
 
+  const MEMBER_COLORS = [
+    'bg-indigo-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
+    'bg-rose-500', 'bg-cyan-500', 'bg-orange-500',
+  ];
+
   const [hoveredCard, setHoveredCard] = useState(null);
 
   // Role badge styling
   const getRoleBadgeStyle = (role) => {
     switch (role) {
       case 'Owner':
-        return 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900';
+        return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400';
       case 'Admin':
-        return 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-900';
+        return 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400';
       case 'Member':
-        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900';
+        return 'bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400';
       default:
-        return 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-900';
+        return 'bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400';
     }
   };
 
-  // Status indicator styling
+  // Status indicator styling (dot + text — kept for parity with the
+  // original component even though its usage block below is commented out)
   const getStatusStyle = (status) => {
     switch (status) {
       case 'Active':
-        return 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-l-4 border-emerald-500';
+        return { dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400' };
       case 'Busy':
-        return 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-l-4 border-amber-500';
+        return { dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400' };
       case 'Needs Attention':
-        return 'bg-red-500/20 text-red-700 dark:text-red-400 border-l-4 border-red-500';
+        return { dot: 'bg-red-500', text: 'text-red-700 dark:text-red-400' };
       default:
-        return 'bg-gray-500/20 text-gray-700 dark:text-gray-400 border-l-4 border-gray-500';
+        return { dot: 'bg-zinc-400 dark:bg-zinc-600', text: 'text-zinc-600 dark:text-zinc-400' };
     }
   };
 
-  // Overview card component
+  // Overview card component — static info card, no hover lift (matches the
+  // non-interactive summary cards used everywhere else in the app)
   const OverviewCard = ({ label, value, icon: Icon, color }) => (
-    <div className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700">
-      <div className={`p-2.5 rounded-lg ${color}`}>
-        <Icon size={20} />
+    <div className="relative flex items-start gap-3.5 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 p-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-white/[0.025]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${color}`}>
+        <Icon size={18} />
       </div>
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
-        <p className="text-2xl font-semibold text-gray-900 dark:text-white">{value}</p>
+      <div>
+        <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+        <p className="mt-0.5 text-[22px] font-bold leading-none tracking-tight text-zinc-900 dark:text-zinc-50">{value}</p>
       </div>
     </div>
   );
@@ -154,79 +161,84 @@ const Workspaces = () => {
   const WorkspaceCard = ({ workspace, isHovered }) => (
     <NavLink
       to={":workspaceId"}
-      className={`relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-300 cursor-pointer
-        ${isHovered ? 'shadow-lg border-gray-300 dark:border-gray-700 -translate-y-1' : 'shadow-sm hover:shadow-md'}`}
+      className={`group relative block cursor-pointer overflow-hidden rounded-2xl border bg-white/70 backdrop-blur-sm transition-all duration-200 dark:bg-white/[0.025] ${
+        isHovered
+          ? '-translate-y-0.5 border-zinc-300/80 shadow-[0_8px_30px_-12px_rgba(24,24,27,0.1)] dark:border-white/[0.1] dark:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]'
+          : 'border-zinc-200/70 dark:border-white/[0.06]'
+      }`}
       onMouseEnter={() => setHoveredCard(workspace.id)}
       onMouseLeave={() => setHoveredCard(null)}
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
+
       {/* Header with name and role badge */}
-      <div className="border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-transparent dark:from-gray-800/50 dark:to-transparent p-4">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
+      <div className="border-b border-zinc-100 p-5 dark:border-white/[0.05]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
               {workspace.name}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="mt-1 text-[12.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
               {workspace.description}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getRoleBadgeStyle(workspace.role)}`}>
+          <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium ${getRoleBadgeStyle(workspace.role)}`}>
             {workspace.role}
           </span>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="p-4 space-y-4">
+      <div className="space-y-3.5 p-5">
         {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Members</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">{workspace.members}</p>
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-xl bg-zinc-50/80 p-2.5 text-center dark:bg-white/[0.03]">
+            <p className="mb-0.5 text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400">Members</p>
+            <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{workspace.members}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Projects</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">{workspace.projects}</p>
+          <div className="rounded-xl bg-zinc-50/80 p-2.5 text-center dark:bg-white/[0.03]">
+            <p className="mb-0.5 text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400">Projects</p>
+            <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{workspace.projects}</p>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Channels</p>
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">{workspace.channels}</p>
+          <div className="rounded-xl bg-zinc-50/80 p-2.5 text-center dark:bg-white/[0.03]">
+            <p className="mb-0.5 text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400">Channels</p>
+            <p className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{workspace.channels}</p>
           </div>
         </div>
 
         {/* Health indicator */}
-        {/* <div className={`rounded-lg p-3 text-sm font-medium flex items-center gap-2 ${getStatusStyle(workspace.status)}`}>
-          <div className="w-2 h-2 rounded-full bg-current opacity-60"></div>
+        {/* <div className={`flex items-center gap-2 rounded-xl p-3 text-[13px] font-medium ${getStatusStyle(workspace.status).text}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${getStatusStyle(workspace.status).dot}`} />
           {workspace.health}
         </div> */}
 
         {/* Activity preview */}
-        <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Recent Activity</p>
-          <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+        <div className="border-t border-zinc-100 pt-3 dark:border-white/[0.05]">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Recent Activity</p>
+          <p className="mt-0.5 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
             {workspace.activitySnippet}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{workspace.lastActivity}</p>
+          <p className="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">{workspace.lastActivity}</p>
         </div>
 
         {/* Member avatars */}
-        <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
-          <div className="flex -space-x-2">
+        <div className="flex items-center gap-2 border-t border-zinc-100 pt-3 dark:border-white/[0.05]">
+          <div className="flex -space-x-1.5">
             {workspace.avatars.slice(0, 3).map((avatar, idx) => (
               <div
                 key={idx}
-                className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-xs font-bold text-white border border-white dark:border-gray-900 shadow-sm"
+                className={`flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white dark:border-[#0B0C10] ${MEMBER_COLORS[idx % MEMBER_COLORS.length]}`}
               >
                 {avatar}
               </div>
             ))}
             {workspace.avatars.length > 3 && (
-              <div className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300 border border-white dark:border-gray-900 shadow-sm">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-600 dark:border-[#0B0C10] dark:bg-white/[0.1] dark:text-zinc-300">
                 {workspace.avatars[3]}
               </div>
             )}
           </div>
-          <span className="text-xs text-gray-600 dark:text-gray-400 font-medium ml-1">
+          <span className="ml-1 text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
             Workspace
           </span>
         </div>
@@ -237,30 +249,33 @@ const Workspaces = () => {
   return (
     <>
       {/* Header section */}
-      <div className="flex items-start justify-between gap-6 mb-10">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex-1">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-[24px]">
             Workspaces
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
+          <p className="mt-1 text-[13.5px] text-zinc-500 dark:text-zinc-400">
             Manage your teams, projects, conversations, and collaboration spaces.
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 shadow-sm hover:shadow-md whitespace-nowrap">
-          <Plus size={18} />
-          Create Workspace
+        <button className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500">
+          <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+          <span className="relative flex items-center gap-1.5">
+            <Plus size={14} />
+            Create Workspace
+          </span>
         </button>
       </div>
 
       {/* Overview cards section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {overviewStats.map((stat, idx) => (
           <OverviewCard key={idx} {...stat} />
         ))}
       </div>
 
       {/* Workspaces grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 pb-8 sm:grid-cols-2 lg:grid-cols-3">
         {workspacesData.map((workspace) => (
           <WorkspaceCard
             key={workspace.id}

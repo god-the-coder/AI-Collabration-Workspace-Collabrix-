@@ -51,7 +51,7 @@ const PULSE_STATS = [
   },
   {
     id: 'ps4',
-    label: 'Blocked Items',
+    label: 'Overdue Tasks',
     value: '2',
     icon: Clock,
     iconBg: 'bg-red-50 dark:bg-red-500/10',

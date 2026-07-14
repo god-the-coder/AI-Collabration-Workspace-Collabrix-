@@ -1,14 +1,3 @@
-/* ======================================================================
-   Settings.jsx
-   Rendered inside <DashboardLayout> — content area only.
-   Do NOT import or recreate Navbar / Sidebar.
-
-   Layout: Left panel (settings nav, sticky) + Right panel (active section).
-   Personal account settings only — no workspace settings.
-   UI only — no routing, no state, no persistence.
-====================================================================== */
-
-// ─── DUMMY DATA ────────────────────────────────────────────────────────────
 
 const CURRENT_USER = {
   name: "Ninja",
@@ -93,7 +82,7 @@ function SettingsNav() {
 
         <div className="space-y-0.5">
           {SETTINGS_NAV.map((item) => {
-            const isActive = item.id === "profile"; // Profile shown by default
+            const isActive = item.id === "profile"; 
             return (
               <button
                 key={item.id}
