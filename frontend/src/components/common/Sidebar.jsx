@@ -15,7 +15,7 @@ const SIDEBAR_ITEMS = [
   { label: "Chats",        icon: "message"    , path:"chats"},
   { label: "Documents",    icon: "file-text"  , path:"documents" },
   { label: "AI Assistant", icon: "sparkle"     , path:"ai-assistant"},
-  { label: "Team",         icon: "users"     , path:"team"},
+  // { label: "Team",         icon: "users"     , path:"team"},
 ];
 
 /* =====================================================================

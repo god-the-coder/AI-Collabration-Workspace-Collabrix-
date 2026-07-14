@@ -226,6 +226,7 @@ function ProjectTabs() {
         {PROJECT_TABS.map((tab) => (
           <NavLink
             to={tab.path}
+            end={" "}
             key={tab.id}
             className={({isActive}) => `shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-1 pb-3 text-[13.5px] font-medium transition-colors ${
               isActive
