@@ -1,7 +1,8 @@
 from rest_framework.views import APIView, Response
-from .services import WorkspaceService
-from .serializers import WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer
-from apps.accounts.models import UserModel
+from .services import WorkspaceService, WorkspaceDetailSerivce
+from .serializers import  WorkspaceOverviewSerializer,WorkspaceLayoutSerializer,WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer
+# from apps.accounts.models import UserModel
+
 
 
 class WorskspacesListAPIView(APIView):
@@ -49,4 +50,39 @@ class CreateWorkspaceAPIView(APIView):
        print(e)
        raise
 
-   
+
+class WorkspaceDetailAPIView(APIView):
+  
+  def get(self, request, workspace_id):
+    try:
+      resp = WorkspaceService.workspace_layout_summary(
+        user=request.user, 
+        workspace_id=workspace_id
+      )
+
+      serializer = WorkspaceLayoutSerializer(
+         resp
+      )
+
+      return Response(serializer.data)
+    except Exception as e:
+      print(type(e))
+      print(e)
+      raise
+
+
+class WorkspaceDetailOverviewAPIView(APIView):
+  
+  def get(self, request, workspace_id):
+      resp=WorkspaceDetailSerivce.get_overview_data(
+        user=request.user,
+        workspace_id=workspace_id
+      )
+
+      return Response({
+        "summary": resp["summary"],
+        "active_projects": WorkspaceDetailOverviewAPIView(resp["workspace"], many=True).data
+      })
+    
+
+ 

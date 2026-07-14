@@ -94,8 +94,6 @@ class CreateWorkspaceSerializer(serializers.Serializer):
     logo = serializers.FileField(required=False)
 
 
-
-
 class WorkspaceOwnerSerializer(serializers.ModelSerializer):
     class Meta:
         model=UserModel
@@ -119,5 +117,48 @@ class CreateWorkspaceResponseSerializer(serializers.ModelSerializer):
         ]
 
 
+class WorkspaceLayoutSerializer(serializers.ModelSerializer):
 
+    logo=serializers.SerializerMethodField()
+    initials=serializers.SerializerMethodField()
+    role=serializers.CharField(read_only=True)
+    members_count=serializers.IntegerField(read_only=True)
+    tasks_count=serializers.IntegerField(read_only=True)
+    projects_count=serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model=Workspace
+        fields=[
+            "id",
+            "name",
+            "description",
+            "role",
+            "members_count",
+            "projects_count",
+            "tasks_count",
+            "logo",
+            "initials"
+        ]
+
+    def get_initials(self, obj):
+
+        words = obj.name.split()
+
+        if len(words) >= 2:
+            return (
+                words[0][0] +
+                words[1][0]
+            ).upper()
+
+        return obj.name[:2].upper()
+    
+
+    def get_logo(self, obj):
+        if obj.logo:
+            return obj.logo.file.url
+        return None
+
+
+class WorkspaceOverviewSerializer(serializers.ModelSerializer):
+    pass
 

@@ -4,6 +4,7 @@ from apps.workspaces.models import Workspace, WorkspaceRole
 from apps.files.models import File, FileType
 from django.db.models import Count, OuterRef, Subquery, Prefetch
 from django.utils.text import slugify
+from rest_framework.exceptions import PermissionDenied
 
 
 
@@ -153,5 +154,65 @@ class WorkspaceService:
         )   
 
 
-        return workspace 
+        return workspace
+
+    @staticmethod
+    def workspace_layout_summary(user, workspace_id):
+        
+        workspace=Workspace.objects.filter(
+            id=workspace_id,
+            members__user=user
+        ).select_related(
+            "logo"
+        ).annotate(
+            role=Subquery(
+                WorkspaceMember.objects.filter(
+                    workspace=OuterRef("pk"),
+                    user=user
+                ).values("role")[:1]
+            ),
+
+            members_count=Count(
+                "members",
+                distinct=True
+            ),
+
+            projects_count=Count(
+                "projects",
+                distinct=True
+            ),
+
+            tasks_count=Count(
+                "tasks",
+                distinct=True
+            )
+
+        ).first()
+
+        if workspace is None:
+            raise PermissionDenied(
+                "You don't have permission to access this workspace"
+            )
+
+        return workspace
+
+
+
+class WorkspaceDetailSerivce:
+
+    @staticmethod
+    def get_overview_data(user, workspace_id):
+        return {
+            "summary": WorkspaceDetailSerivce.get_overview_summary(user, workspace_id),
+            "active_projects": WorkspaceDetailSerivce.get_active_projects(user, workspace_id)
+        }
+    
+
+    @staticmethod
+    def get_overview_summary(user, workspace_id):
+        pass
+
+    @staticmethod
+    def get_active_projects(user, workspace_id):
+        pass
 

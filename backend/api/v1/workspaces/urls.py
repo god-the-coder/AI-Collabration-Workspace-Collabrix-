@@ -1,5 +1,5 @@
 from django.urls import path 
-from .views import WorskspacesListAPIView, CreateWorkspaceAPIView
+from .views import WorskspacesListAPIView, CreateWorkspaceAPIView, WorkspaceDetailAPIView
 
 urlpatterns = [
     path(
@@ -11,5 +11,10 @@ urlpatterns = [
     path(
         "create/",
         CreateWorkspaceAPIView.as_view()
+    ),
+
+    path(
+        "<uuid:workspace_id>/",
+        WorkspaceDetailAPIView.as_view()
     )
 ]
