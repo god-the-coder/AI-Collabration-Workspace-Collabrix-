@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from apps.projects.models import Project, ProjectMember, ProjectStatus
+from apps.tasks.models import Task
 
 class ProjectWorkspaceSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
@@ -173,4 +174,126 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
 
         return obj.name[:2].upper()
 
+
+
+class ProjectOverviewSerializer(serializers.ModelSerializer):
+
+    workspace = serializers.SerializerMethodField()
+
+    summary = serializers.SerializerMethodField()
+
+    task_progress = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Project
+
+        fields = [
+            "id",
+            "name",
+            "description",
+            "workspace",
+            "status",
+            "summary",
+            "task_progress",
+        ]
+
+    def get_workspace(self, obj):
+
+        return {
+            "id": obj.workspace.id,
+            "name": obj.workspace.name
+        }
+
+    def get_summary(self, obj):
+
+        progress = 0
+
+        if obj.total_tasks:
+            progress = round(
+                obj.completed_tasks /
+                obj.total_tasks * 100
+            )
+
+        return {
+            "members_count": obj.members_count,
+            "total_tasks": obj.total_tasks,
+            "completed_tasks": obj.completed_tasks,
+            "overdue_tasks": obj.overdue_tasks,
+            "progress_percentage": progress
+        }
+
+    def get_task_progress(self, obj):
+
+        total = obj.total_tasks or 1
+
+        return {
+
+            "todo": {
+                "count": obj.todo_tasks,
+                "percentage": round(
+                    obj.todo_tasks / total * 100
+                )
+            },
+
+            "in_progress": {
+                "count": obj.in_progress_tasks,
+                "percentage": round(
+                    obj.in_progress_tasks / total * 100
+                )
+            },
+
+            "review": {
+                "count": obj.review_tasks,
+                "percentage": round(
+                    obj.review_tasks / total * 100
+                )
+            },
+
+            "completed": {
+                "count": obj.completed_tasks,
+                "percentage": round(
+                    obj.completed_tasks / total * 100
+                )
+            }
+
+        }
+
+
+
+class TaskCardSerializer(serializers.ModelSerializer):
+
+    assignee = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Task
+
+        fields = [
+            "id",
+            "title",
+            "status",
+            "priority",
+            "due_date",
+            "comments_count",
+            "attachments_count",
+            "assignee",
+        ]
+
+    def get_assignee(self, obj):
+
+        if obj.assignee is None:
+            return None
+
+        return {
+            "id": obj.assignee.id,
+            "username": obj.assignee.username,
+            "avatar": (
+                obj.assignee.avatar.file.url
+                if obj.assignee.avatar
+                else None
+            ),
+            "initials": (
+                obj.assignee.first_name[:1] +
+                obj.assignee.last_name[:1]
+            ).upper()
+        }
 

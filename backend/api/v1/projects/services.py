@@ -3,7 +3,8 @@ from django.utils import timezone
 from django.db.models import Count, Prefetch, Q
 from apps.workspaces.models import Workspace, WorkspaceRole
 from rest_framework.exceptions import PermissionDenied
-from apps.tasks.models import TaskStatus
+from apps.tasks.models import TaskStatus, Task
+from .serializers import TaskCardSerializer
 
 
 class ProjectsListService:
@@ -119,8 +120,6 @@ class NewProjectService:
 
         return project
 
-
-
 class ProjectDetailService:
 
     @staticmethod
@@ -160,3 +159,166 @@ class ProjectDetailService:
             )
 
         return project
+
+
+class ProjectOverviewService:
+
+    @staticmethod
+    def get_overview(user, project_id):
+
+        project = (
+            Project.objects.filter(
+                id=project_id,
+                members__user=user
+            )
+            .select_related(
+                "workspace"
+            )
+            .annotate(
+
+                members_count=Count(
+                    "members",
+                    distinct=True
+                ),
+
+                total_tasks=Count(
+                    "tasks",
+                    distinct=True
+                ),
+
+                todo_tasks=Count(
+                    "tasks",
+                    filter=Q(tasks__status=TaskStatus.TODO),
+                    distinct=True
+                ),
+
+                in_progress_tasks=Count(
+                    "tasks",
+                    filter=Q(tasks__status=TaskStatus.IN_PROGRESS),
+                    distinct=True
+                ),
+
+                review_tasks=Count(
+                    "tasks",
+                    filter=Q(tasks__status=TaskStatus.IN_REVIEW),
+                    distinct=True
+                ),
+
+                completed_tasks=Count(
+                    "tasks",
+                    filter=Q(tasks__status=TaskStatus.COMPLETED),
+                    distinct=True
+                ),
+
+                overdue_tasks=Count(
+                    "tasks",
+                    filter=(
+                        Q(tasks__due_date__lt=timezone.localdate())
+                        &
+                        ~Q(tasks__status__in=[
+                            TaskStatus.COMPLETED,
+                            TaskStatus.CANCELLED
+                        ])
+                    ),
+                    distinct=True
+                )
+
+            )
+            .first()
+        )
+
+        if project is None:
+            raise PermissionDenied(
+                "You don't have access to this project."
+            )
+
+        return project
+    
+
+class ProjectTasksService:
+
+    @staticmethod
+    def get_project_tasks(user, project_id):
+
+        has_access = Project.objects.filter(
+            id=project_id,
+            members__user=user
+        ).exists()
+
+        if not has_access:
+            raise PermissionDenied(
+                "You don't have access to this project."
+            )
+
+        queryset = (
+            Task.objects.filter(
+                project_id=project_id
+            )
+            .select_related(
+                "assignee",
+                "assignee__avatar"
+            )
+            .annotate(
+                comments_count=Count(
+                    "comments",
+                    distinct=True
+                ),
+                attachments_count=Count(
+                    "attachments",
+                    distinct=True
+                )
+            )
+            .order_by("created_at")
+        )
+
+        return {
+            "summary": {
+                "todo": queryset.filter(
+                    status=TaskStatus.TODO
+                ).count(),
+
+                "in_progress": queryset.filter(
+                    status=TaskStatus.IN_PROGRESS
+                ).count(),
+
+                "review": queryset.filter(
+                    status=TaskStatus.IN_REVIEW
+                ).count(),
+
+                "completed": queryset.filter(
+                    status=TaskStatus.COMPLETED
+                ).count(),
+            },
+
+            "tasks": {
+                "todo": TaskCardSerializer(
+                    queryset.filter(
+                        status=TaskStatus.TODO
+                    ),
+                    many=True
+                ).data,
+
+                "in_progress": TaskCardSerializer(
+                    queryset.filter(
+                        status=TaskStatus.IN_PROGRESS
+                    ),
+                    many=True
+                ).data,
+
+                "review": TaskCardSerializer(
+                    queryset.filter(
+                        status=TaskStatus.IN_REVIEW
+                    ),
+                    many=True
+                ).data,
+
+                "completed": TaskCardSerializer(
+                    queryset.filter(
+                        status=TaskStatus.COMPLETED
+                    ),
+                    many=True
+                ).data,
+            }
+        }
+
+

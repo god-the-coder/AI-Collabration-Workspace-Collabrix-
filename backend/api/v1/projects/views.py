@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
-from .services import ProjectsListService, NewProjectService, ProjectDetailService
-from .serializers import ProjectDetailSerializer,ProjectListSerializer, CreateProjectSerializer, CreateProjectResponseSerializer
+from .services import ProjectsListService, NewProjectService, ProjectDetailService, ProjectOverviewService, ProjectTasksService
+from .serializers import ProjectOverviewSerializer,ProjectDetailSerializer,ProjectListSerializer, CreateProjectSerializer, CreateProjectResponseSerializer
 from rest_framework.response import Response
 
 
@@ -62,3 +62,29 @@ class ProjectDetailAPIView(APIView):
       print(type(e))
       print(e)
       raise
+
+
+class ProjectOverviewAPIView(APIView):
+
+    def get(self, request, project_id):
+
+        project = ProjectOverviewService.get_overview(
+            request.user,
+            project_id
+        )
+
+        return Response(
+            ProjectOverviewSerializer(project).data
+        )
+    
+
+class ProjectTasksAPIView(APIView):
+
+    def get(self, request, project_id):
+
+        response = ProjectTasksService.get_project_tasks(
+            request.user,
+            project_id
+        )
+
+        return Response(response)
