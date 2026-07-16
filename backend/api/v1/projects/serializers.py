@@ -90,6 +90,7 @@ class CreateProjectResponseSerializer(serializers.ModelSerializer):
             "name"
         ]
 
+
 class CreateProjectSerializer(serializers.Serializer):
     workspace_id=serializers.UUIDField(write_only=True)
     name=serializers.CharField(
@@ -115,8 +116,7 @@ class CreateProjectSerializer(serializers.Serializer):
         required=False,
         default=ProjectStatus.PLANNING,
         write_only=True
-    )
-    
+    )    
 
 
 class ProjectDetailSerializer(serializers.ModelSerializer):
@@ -173,7 +173,6 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             ).upper()
 
         return obj.name[:2].upper()
-
 
 
 class ProjectOverviewSerializer(serializers.ModelSerializer):
@@ -259,10 +258,11 @@ class ProjectOverviewSerializer(serializers.ModelSerializer):
         }
 
 
-
 class TaskCardSerializer(serializers.ModelSerializer):
 
     assignee = serializers.SerializerMethodField()
+    # comments_count = serializers.IntegerField()
+    # attachments_count = serializers.IntegerField()
 
     class Meta:
         model = Task
@@ -273,8 +273,8 @@ class TaskCardSerializer(serializers.ModelSerializer):
             "status",
             "priority",
             "due_date",
-            "comments_count",
-            "attachments_count",
+            # "comments_count",
+            # "attachments_count",
             "assignee",
         ]
 
@@ -296,4 +296,139 @@ class TaskCardSerializer(serializers.ModelSerializer):
                 obj.assignee.last_name[:1]
             ).upper()
         }
+
+
+    def get_avatar(self, obj):
+
+        if obj.user.avatar:
+            return obj.user.avatar.file.url
+
+        return None
+
+
+    def get_initials(self, obj):
+
+        return (
+            obj.user.first_name[:1] +
+            obj.user.last_name[:1]
+        ).upper()
+
+
+    def get_last_active_at(self, obj):
+
+        session = obj.user.sessions.filter(
+            revoked_at__isnull=True
+        ).order_by(
+            "-last_active_at"
+        ).first()
+
+        if session:
+            return session.last_active_at
+
+        return None
+
+
+    def get_is_current_user(self, obj):
+
+        return (
+            obj.user ==
+            self.context["request"].user
+        )
+
+
+    def get_task_summary(self, obj):
+
+        assigned = obj.assigned_tasks
+
+        completed = obj.completed_tasks
+
+        if assigned == 0:
+            rate = 0
+        else:
+            rate = round(
+                completed / assigned * 100
+            )
+
+        return {
+            "assigned": assigned,
+            "completed": completed,
+            "completion_rate": rate
+        }
+    
+
+class ProjectMemberCardSerializer(serializers.ModelSerializer):
+
+    id = serializers.UUIDField(
+        source="user.id",
+        read_only=True
+    )
+
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    handle = serializers.SerializerMethodField()
+
+    avatar = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
+    role = serializers.CharField(
+        source="workspace_role",
+        read_only=True
+    )
+
+    joined_at = serializers.DateTimeField(
+        read_only=True
+    )
+
+    assigned_tasks = serializers.IntegerField(
+        read_only=True
+    )
+
+    class Meta:
+
+        model = ProjectMember
+
+        fields = [
+            "id",
+            "username",
+            "handle",
+            "avatar",
+            "initials",
+            "role",
+            "joined_at",
+            "assigned_tasks"
+        ]
+
+    def get_handle(self, obj):
+        return f"@{obj.user.username}"
+
+    def get_avatar(self, obj):
+
+        if obj.user.avatar:
+            return obj.user.avatar.file.url
+
+        return None
+
+    def get_initials(self, obj):
+
+        username = obj.user.username.split()
+
+        if len(username) >= 2:
+            return (
+                username[0][0] +
+                username[1][0]
+            ).upper()
+
+        return obj.user.username[:2].upper()
+
+
+class ProjectMembersResponseSerializer(serializers.Serializer):
+
+    members = ProjectMemberCardSerializer(
+        many=True
+    )
+
 

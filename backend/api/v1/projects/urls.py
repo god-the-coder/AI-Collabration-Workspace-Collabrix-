@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import ProjectsListRetrieveAPIView, CreateProjectAPIView, ProjectDetailAPIView, ProjectOverviewAPIView
+from .views import ProjectTasksAPIView, ProjectMembersAPIView
 
 urlpatterns = [
     path(
@@ -22,10 +23,13 @@ urlpatterns = [
         ProjectOverviewAPIView.as_view()
     ),
 
-    # path("<uuid:project_id>/tasks/", .as_view(), name="")
+    path(
+        "<uuid:project_id>/tasks/", 
+        ProjectTasksAPIView.as_view()
+    ),
 
-    # path(
-    #     "<uuid:project_id>/members/", 
-    #     .as_view()
-    # )
+    path(
+        "<uuid:project_id>/members/", 
+        ProjectMembersAPIView.as_view()
+    )
 ]

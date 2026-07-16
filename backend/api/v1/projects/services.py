@@ -1,10 +1,11 @@
 from apps.projects.models import ProjectMember, Project, ProjectStatus
 from django.utils import timezone
-from django.db.models import Count, Prefetch, Q
-from apps.workspaces.models import Workspace, WorkspaceRole
+from django.db.models import Count, Prefetch, Q, Subquery, OuterRef
+from apps.workspaces.models import Workspace, WorkspaceRole, WorkspaceMember
 from rest_framework.exceptions import PermissionDenied
 from apps.tasks.models import TaskStatus, Task
 from .serializers import TaskCardSerializer
+from datetime import timedelta
 
 
 class ProjectsListService:
@@ -250,7 +251,7 @@ class ProjectTasksService:
                 "You don't have access to this project."
             )
 
-        queryset = (
+        tasks = (
             Task.objects.filter(
                 project_id=project_id
             )
@@ -258,67 +259,94 @@ class ProjectTasksService:
                 "assignee",
                 "assignee__avatar"
             )
+            .order_by(
+                "created_at"
+            )
+        )
+
+        summary = {
+            "todo": 0,
+            "in_progress": 0,
+            "review": 0,
+            "completed": 0,
+        }
+
+        grouped_tasks = {
+            "todo": [],
+            "in_progress": [],
+            "review": [],
+            "completed": [],
+        }
+
+        for task in tasks:
+
+            task_data = TaskCardSerializer(task).data
+
+            if task.status == TaskStatus.TODO:
+                summary["todo"] += 1
+                grouped_tasks["todo"].append(task_data)
+
+            elif task.status == TaskStatus.IN_PROGRESS:
+                summary["in_progress"] += 1
+                grouped_tasks["in_progress"].append(task_data)
+
+            elif task.status == TaskStatus.IN_REVIEW:
+                summary["review"] += 1
+                grouped_tasks["review"].append(task_data)
+
+            elif task.status == TaskStatus.COMPLETED:
+                summary["completed"] += 1
+                grouped_tasks["completed"].append(task_data)
+
+        return {
+            "summary": summary,
+            "tasks": grouped_tasks
+        }
+    
+
+
+class ProjectMembersService:
+
+    @staticmethod
+    def get_members(user, project_id):
+
+        project = Project.objects.filter(
+            id=project_id,
+            members__user=user
+        ).first()
+
+        if project is None:
+            raise PermissionDenied(
+                "You don't have access to this project."
+            )
+
+        members = (
+            ProjectMember.objects.filter(
+                project=project
+            )
+            .select_related(
+                "user",
+                "user__avatar"
+            )
             .annotate(
-                comments_count=Count(
-                    "comments",
-                    distinct=True
+
+                workspace_role=Subquery(
+                    WorkspaceMember.objects.filter(
+                        workspace=project.workspace,
+                        user=OuterRef("user")
+                    ).values("role")[:1]
                 ),
-                attachments_count=Count(
-                    "attachments",
+
+                assigned_tasks=Count(
+                    "user__tasks_assigned",
                     distinct=True
                 )
+
             )
-            .order_by("created_at")
+            .order_by("user__username")
         )
 
         return {
-            "summary": {
-                "todo": queryset.filter(
-                    status=TaskStatus.TODO
-                ).count(),
-
-                "in_progress": queryset.filter(
-                    status=TaskStatus.IN_PROGRESS
-                ).count(),
-
-                "review": queryset.filter(
-                    status=TaskStatus.IN_REVIEW
-                ).count(),
-
-                "completed": queryset.filter(
-                    status=TaskStatus.COMPLETED
-                ).count(),
-            },
-
-            "tasks": {
-                "todo": TaskCardSerializer(
-                    queryset.filter(
-                        status=TaskStatus.TODO
-                    ),
-                    many=True
-                ).data,
-
-                "in_progress": TaskCardSerializer(
-                    queryset.filter(
-                        status=TaskStatus.IN_PROGRESS
-                    ),
-                    many=True
-                ).data,
-
-                "review": TaskCardSerializer(
-                    queryset.filter(
-                        status=TaskStatus.IN_REVIEW
-                    ),
-                    many=True
-                ).data,
-
-                "completed": TaskCardSerializer(
-                    queryset.filter(
-                        status=TaskStatus.COMPLETED
-                    ),
-                    many=True
-                ).data,
-            }
+            "members": members
         }
-
 
