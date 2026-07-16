@@ -1,5 +1,5 @@
 from rest_framework.views import APIView, Response
-from .services import WorkspaceService, WorkspaceDetailSerivce
+from .services import WorkspaceService, WorkspaceDetailSerivce, WorkspaceMembersService
 from .serializers import  WorkspaceMemberSerializer, WorkspaceOverviewAndProjectsSerializer,WorkspaceLayoutSerializer,WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer
 # from apps.accounts.models import UserModel
 
@@ -110,7 +110,21 @@ class WorkspaceDetailProjectsAPIView(APIView):
 
 
 class WorkspaceDetailMembersAPIView(APIView):
+    def get(self, request, workspace_id):
 
-  def get(self, request, workspace_id):
-      pass 
+        response = WorkspaceMembersService.get_members_data(
+            request.user,
+            workspace_id
+        )
+
+        return Response({
+            "summary": response["summary"],
+            "members": WorkspaceMemberSerializer(
+                response["members"],
+                many=True,
+                context={
+                  "request": request
+                }
+            ).data
+        })
 

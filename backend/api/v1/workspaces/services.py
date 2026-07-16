@@ -7,6 +7,7 @@ from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
 from apps.tasks.models import Task, TaskStatus
 from django.utils import timezone
+from datetime import timedelta
 
 
 
@@ -376,4 +377,86 @@ class WorkspaceDetailSerivce:
         return project
 
   
+
+# <-------------------- Members --------------------------------->
+
+class WorkspaceMembersService:
+
+    @staticmethod
+    def get_members_data(user, workspace_id):
+
+        has_access = Workspace.objects.filter(
+            id=workspace_id,
+            members__user=user
+        ).exists()
+
+        if not has_access:
+            raise PermissionDenied(
+                "You don't have access to this workspace."
+            )
+
+        return {
+            "summary": WorkspaceMembersService.get_summary(workspace_id),
+            "members": WorkspaceMembersService.get_members_queryset(workspace_id)
+        }
+    
+
+    @staticmethod
+    def get_summary(workspace_id):
+          return {
+            "total_members": WorkspaceMembersService.get_total_members_count(workspace_id),
+            "online_members": WorkspaceMembersService.get_online_members_count(workspace_id),
+            "admins": WorkspaceMembersService.get_admins_count(workspace_id),
+            "pending_invites": WorkspaceMembersService.get_pending_invites_count(workspace_id),
+           }  
+
+    @staticmethod
+    def get_total_members_count(workspace_id):
+      return WorkspaceMember.objects.filter(
+        workspace_id=workspace_id
+      ).count()  
+    
+
+    @staticmethod
+    def get_admins_count(workspace_id):
+      return WorkspaceMember.objects.filter(
+        workspace_id=workspace_id,
+        role__in=[
+            WorkspaceRole.ADMIN,
+            WorkspaceRole.OWNER
+        ]
+      ).count()
+    
+    @staticmethod
+    def get_pending_invites_count(workspace_id):
+      return Invitation.objects.filter(
+        workspace_id=workspace_id,
+        status=InvitationStatus.PENDING
+      ).count()
+    
+
+    @staticmethod
+    def get_online_members_count(workspace_id):
+
+      threshold = timezone.now() - timedelta(minutes=5)
+
+      return WorkspaceMember.objects.filter(
+        workspace_id=workspace_id,
+        user__sessions__last_active_at__gte=threshold,
+        user__sessions__revoked_at__isnull=True
+      ).distinct().count()
+    
+
+
+    @staticmethod
+    def get_members_queryset(workspace_id):
+
+      return WorkspaceMember.objects.filter(
+        workspace_id=workspace_id
+      ).select_related(
+        "user",
+        "user__avatar"
+      ).order_by(
+        "joined_at"
+      )
 

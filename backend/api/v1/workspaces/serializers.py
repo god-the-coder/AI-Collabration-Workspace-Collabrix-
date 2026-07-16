@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.workspaces.models import Workspace
+from apps.workspaces.models import Workspace, WorkspaceMember
 from apps.accounts.models import UserModel
 from apps.projects.models import Project
 
@@ -221,6 +221,85 @@ class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
 #     pass
 
 
-class WorkspaceMembersSerializer(serializers.ModelSerializer):
-    pass
+class WorkspaceMemberSerializer(serializers.ModelSerializer):
+
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    email = serializers.EmailField(
+        source="user.email",
+        read_only=True
+    )
+
+    avatar = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
+    status = serializers.SerializerMethodField()
+
+    last_active_at = serializers.SerializerMethodField()
+
+    is_current_user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WorkspaceMember
+
+        fields = [
+            "id",
+            "username",
+            "email",
+            "avatar",
+            "initials",
+            "role",
+            "status",
+            "joined_at",
+            "last_active_at",
+            "is_current_user",
+        ]
+
+    def get_avatar(self, obj):
+
+      if obj.user.avatar:
+        return obj.user.avatar.file.url
+
+      return None
+    
+    
+    def get_initials(self, obj):
+
+      username = obj.user.username
+
+      words = username.split()
+
+      if len(words) >= 2:
+        return (
+            words[0][0] +
+            words[1][0]
+        ).upper()
+
+      return username[:2].upper()    
+    
+
+    def get_is_current_user(self, obj):
+      return obj.user == self.context["request"].user
+    
+    
+    def get_status(self, obj):
+      return "OFFLINE"
+    
+    
+    def get_last_active_at(self, obj):
+
+      session = obj.user.sessions.filter(
+        revoked_at__isnull=True
+      ).order_by(
+        "-last_active_at"
+      ).first()
+
+      if session:
+        return session.last_active_at
+
+      return None
 
