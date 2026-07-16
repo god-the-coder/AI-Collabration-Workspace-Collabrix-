@@ -1,8 +1,9 @@
 from apps.projects.models import ProjectMember, Project, ProjectStatus
 from django.utils import timezone
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from apps.workspaces.models import Workspace, WorkspaceRole
 from rest_framework.exceptions import PermissionDenied
+from apps.tasks.models import TaskStatus
 
 
 class ProjectsListService:
@@ -118,3 +119,44 @@ class NewProjectService:
 
         return project
 
+
+
+class ProjectDetailService:
+
+    @staticmethod
+    def get_project(project_id, user):
+
+        project = (
+            Project.objects.filter(
+                id=project_id,
+                members__user=user
+            )
+            .select_related(
+                "workspace"
+            )
+            .annotate(
+                members_count=Count(
+                    "members",
+                    distinct=True
+                ),
+                total_tasks=Count(
+                    "tasks",
+                    distinct=True
+                ),
+                completed_tasks=Count(
+                    "tasks",
+                    filter=Q(
+                        tasks__status=TaskStatus.COMPLETED
+                    ),
+                    distinct=True
+                )
+            )
+            .first()
+        )
+
+        if project is None:
+            raise PermissionDenied(
+                "You don't have access to this project."
+            )
+
+        return project

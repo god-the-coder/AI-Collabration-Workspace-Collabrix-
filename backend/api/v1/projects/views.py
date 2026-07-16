@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
-from .services import ProjectsListService, NewProjectService
-from .serializers import ProjectListSerializer, CreateProjectSerializer, CreateProjectResponseSerializer
+from .services import ProjectsListService, NewProjectService, ProjectDetailService
+from .serializers import ProjectDetailSerializer,ProjectListSerializer, CreateProjectSerializer, CreateProjectResponseSerializer
 from rest_framework.response import Response
 
 
@@ -46,3 +46,19 @@ class CreateProjectAPIView(APIView):
        print(e)
        raise
 
+
+class ProjectDetailAPIView(APIView):
+    def get(self, request, project_id):
+     try:
+        project = ProjectDetailService.get_project(
+            project_id,
+            request.user
+        )
+
+        return Response(
+            ProjectDetailSerializer(project).data
+        )
+     except Exception as e:
+      print(type(e))
+      print(e)
+      raise

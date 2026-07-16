@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from apps.projects.models import Project, ProjectMember, ProjectStatus
 
-
 class ProjectWorkspaceSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     name = serializers.CharField(read_only=True)
@@ -118,5 +117,60 @@ class CreateProjectSerializer(serializers.Serializer):
     )
     
 
+
+class ProjectDetailSerializer(serializers.ModelSerializer):
+
+    workspace_name = serializers.CharField(
+        source="workspace.name",
+        read_only=True
+    )
+
+    progress_percentage = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
+    # completed_tasks = serializers.IntegerField()
+
+    total_tasks = serializers.IntegerField()
+
+    members_count = serializers.IntegerField()
+
+    class Meta:
+        model = Project
+
+        fields = [
+            "id",
+            "name",
+            "description",
+            "workspace_name",
+            "status",
+            # "priority",
+            "progress_percentage",
+            # "completed_tasks",
+            "total_tasks",
+            "members_count",
+            "initials",
+        ]
+
+    def get_progress_percentage(self, obj):
+
+        if obj.total_tasks == 0:
+            return 0
+
+        return round(
+            (obj.completed_tasks / obj.total_tasks) * 100
+        )
+
+    def get_initials(self, obj):
+
+        words = obj.name.split()
+
+        if len(words) >= 2:
+            return (
+                words[0][0] +
+                words[1][0]
+            ).upper()
+
+        return obj.name[:2].upper()
 
 
