@@ -43,6 +43,9 @@ import Profile from "../pages/Profile/Profile";
 // settings
 import Settings from "../pages/Settings/Settings";
 
+// communication module
+import Chats from "../pages/chats/Chats";
+
 
 function AppRoutes() {
     return (
@@ -131,6 +134,8 @@ function AppRoutes() {
                     <Route path="members" element={<ProjectMembers/>}/>
                                 
                 </Route>
+
+                <Route path="/chats" element={<Chats />}/>
 
             </Route>
 

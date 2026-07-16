@@ -13,7 +13,7 @@ const SIDEBAR_ITEMS = [
   { label: "Projects",     icon: "folder",      path:"projects"},
   { label: "Tasks",        icon: "check-square", path:"tasks"},
   { label: "Chats",        icon: "message"    , path:"chats"},
-  { label: "Documents",    icon: "file-text"  , path:"documents" },
+  // { label: "Documents",    icon: "file-text"  , path:"documents" },
   { label: "AI Assistant", icon: "sparkle"     , path:"ai-assistant"},
   // { label: "Team",         icon: "users"     , path:"team"},
 ];
