@@ -1,8 +1,8 @@
 from rest_framework.urls import path
-from .views import NotificationsRetrieveAPIView
+from .views import NotificationListAPIView
 urlpatterns = [
     path(
         "all/",
-        NotificationsRetrieveAPIView.as_view()
+        NotificationListAPIView.as_view()
     )
 ]

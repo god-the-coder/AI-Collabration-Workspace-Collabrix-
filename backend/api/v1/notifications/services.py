@@ -1,23 +1,23 @@
 from apps.notifications.models import Notification
 
 
-class NotifiationService:
+class NotificationService:
 
     @staticmethod
-    def get_all_notification(user):
-        return (
-            Notification.objects.filter(
-                recipient=user,
-            ).select_related(
-                "actor",
-                "workspace"
-            ).order_by("-created_at")
+    def get_notifications(user):
+        notifications = (
+            Notification.objects
+            .filter(recipient=user)
+            .select_related("actor")
+            [:30]
         )
-    
-    @staticmethod
-    def get_unread_count(user):
-        return (
-            Notification.objects.filter(
-                recipient=user,
-            ).count()
-        )
+
+        unread_count = Notification.objects.filter(
+            recipient=user,
+            is_read=False
+        ).count()
+
+        return {
+            "unread_count": unread_count,
+            "notifications": notifications,
+        }

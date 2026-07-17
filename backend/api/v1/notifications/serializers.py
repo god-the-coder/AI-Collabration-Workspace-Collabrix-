@@ -1,16 +1,30 @@
 from rest_framework import serializers
+
 from apps.notifications.models import Notification
+from apps.accounts.models import UserModel
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserModel
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "avatar",
+        ]
+
+    def get_avatar(self, obj):
+        if obj.avatar:
+            return obj.avatar.file_url
+        return None
+    
 
 
 class NotificationSerializer(serializers.ModelSerializer):
-
-    workspace_id = serializers.UUIDField(
-        source="workspace.id"
-    )
-
-    actor = serializers.CharField(
-        source="actor.username"
-    )
+    actor = ProfileSerializer(read_only=True)
 
     class Meta:
         model = Notification
@@ -19,11 +33,15 @@ class NotificationSerializer(serializers.ModelSerializer):
             "actor",
             "title",
             "message",
-            "priority",
             "notification_type",
+            "priority",
             "is_read",
             "created_at",
             "target_type",
             "target_id",
-            "workspace_id"
         ]
+
+
+class NotificationListSerializer(serializers.Serializer):
+    unread_count = serializers.IntegerField()
+    notifications = NotificationSerializer(many=True)
