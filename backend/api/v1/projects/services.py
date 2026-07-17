@@ -6,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 from apps.tasks.models import TaskStatus, Task
 from .serializers import TaskCardSerializer
 from datetime import timedelta
-
+from api.v1.notifications.services import NotificationService
 
 class ProjectsListService:
 
@@ -118,6 +118,14 @@ class NewProjectService:
             start_date=validated_data["start_date"],
             status=validated_data["status"]
         )
+
+        NotificationService.project_created(
+          actor=user,
+          workspace=workspace,
+          project=project,
+        )
+
+
 
         return project
 
