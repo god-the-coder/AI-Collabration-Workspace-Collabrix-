@@ -49,3 +49,22 @@ class NotificationService:
             )
 
         Notification.objects.bulk_create(notifications)
+
+
+
+    @staticmethod
+    def task_assigned(actor, recipient, workspace, task):
+
+        if actor == recipient:
+            return
+
+        Notification.objects.create(
+            actor=actor,
+            recipient=recipient,
+            workspace=workspace,
+            title="Task Assigned",
+            message=f"{actor.username} assigned you '{task.title}'.",
+            notification_type=NotificationType.TASK_ASSIGNED,
+            target_type=NotificationTargetType.TASK,
+            target_id=task.id,
+        )
