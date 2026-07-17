@@ -1,10 +1,6 @@
-/* ======================================================================
-   Tasks.jsx
-   Rendered inside <DashboardLayout> — content area only.
-   Do NOT import or recreate Navbar / Sidebar.
-====================================================================== */
-
-// ─── CONFIG ────────────────────────────────────────────────────────────────
+import CreateProjectModal from "../Projects/CreateProjectModal";
+import { useState } from "react";
+import CreateTaskModal from "./CreateTaskModal";
 
 const PRIORITY = {
   critical: {
@@ -262,6 +258,10 @@ const UPCOMING_TASKS = [
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function Tasks() {
+
+  const [showModal, setShowModal] = useState(false);
+
+
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-6 lg:px-8">
 
@@ -278,6 +278,7 @@ export default function Tasks() {
 
         {/* Create Task — identical shimmer-sweep button pattern to Dashboard */}
         <button
+          onClick={() => setShowModal(true)}
           type="button"
           className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500"
         >
@@ -287,6 +288,10 @@ export default function Tasks() {
             Create Task
           </span>
         </button>
+
+        {showModal && (
+          <CreateTaskModal onClose={() => setShowModal(false)}/>
+        )}
       </div>
 
       {/* ── Overview Stats ────────────────────────────────────────── */}

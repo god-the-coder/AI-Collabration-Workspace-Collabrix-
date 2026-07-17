@@ -96,7 +96,7 @@ function ProjectHeader() {
 
       {/* Actions */}
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <button
+        {/* <button
           onClick={() => setShowModal(true)}
           type="button"
           className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500"
@@ -106,7 +106,7 @@ function ProjectHeader() {
             <PlusIcon />
             New Task
           </span>
-        </button>
+        </button> */}
 
         <button
           type="button"
@@ -127,10 +127,10 @@ function ProjectHeader() {
         <OverflowMenu />
       </div>
 
-       {showModal && (
+       {/* {showModal && (
 
         <CreateTaskModal onClose={() => setShowModal(false)}/>
-       )}
+       )} */}
 
 
     </div>

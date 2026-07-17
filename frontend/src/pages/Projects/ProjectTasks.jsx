@@ -1,20 +1,8 @@
 import React from 'react';
+import CreateProjectModal from './CreateProjectModal';
+import { useState } from 'react';
+import CreateTaskModal from '../Tasks/CreateTaskModal';
 
-/* ======================================================================
-   ProjectTasks.jsx
-   Rendered inside <ProjectLayout><Outlet /></ProjectLayout> as the
-   "Tasks" tab. ProjectLayout already renders DashboardLayout, Navbar,
-   Sidebar, the Project Header, and the Project Navigation Tabs — this
-   file is the Outlet content only.
-
-   Purpose: every task belonging to the current project, as a Kanban
-   board. UI only — no drag-and-drop, no filtering/search logic, no
-   state, no event handlers. Toolbar controls and the "+ New Task"
-   button are static; wiring them up (and CreateTaskModal) comes later.
-====================================================================== */
-
-// Flip this during visual QA to preview the empty-project state. Not wired
-// to any real data source — purely a manual toggle for reviewing both states.
 const SHOW_EMPTY_PROJECT_STATE = false;
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
@@ -25,11 +13,6 @@ const PRIORITY_CONFIG = {
   high:     { label: 'High',     dot: 'bg-amber-500',                 text: 'text-amber-700   dark:text-amber-400'  },
   critical: { label: 'Critical', dot: 'bg-red-500',                   text: 'text-red-700     dark:text-red-400'    },
 };
-
-// ─── DUMMY DATA ────────────────────────────────────────────────────────────
-// Column badge counts reflect the project's full total; only a
-// representative slice of cards is rendered here, same as a real board
-// would paginate/scroll rather than render everything at once.
 
 const COLUMNS = [
   {
@@ -158,6 +141,8 @@ export default function ProjectTasks() {
 // ─── TOOLBAR ───────────────────────────────────────────────────────────────
 
 function Toolbar() {
+
+  const [showModal, setShowModal] = useState(false);
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
@@ -182,6 +167,7 @@ function Toolbar() {
 
       {/* New Task — will later open CreateTaskModal */}
       <button
+        onClick={() => setShowModal(true)}
         type="button"
         className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
       >
@@ -191,6 +177,10 @@ function Toolbar() {
           New Task
         </span>
       </button>
+
+      {showModal && (
+        <CreateTaskModal onClose={() => setShowModal(false)}/>
+      )}
     </div>
   );
 }
