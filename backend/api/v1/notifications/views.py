@@ -11,6 +11,7 @@ class NotificationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+     try:
         data = NotificationService.get_notifications(request.user)
 
         serializer = NotificationListSerializer(data)
@@ -19,5 +20,9 @@ class NotificationListAPIView(APIView):
             serializer.data,
             status=status.HTTP_200_OK
         )
+     except Exception as e:
+        print(type(e))
+        print(e)
+        raise
 
 

@@ -18,7 +18,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         if obj.avatar:
-            return obj.avatar.file_url
+            return obj.avatar.file.url
         return None
     
 

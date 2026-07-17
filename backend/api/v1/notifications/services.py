@@ -1,4 +1,4 @@
-from apps.notifications.models import Notification
+from apps.notifications.models import Notification, NotificationType, NotificationTargetType
 
 
 class NotificationService:
@@ -21,3 +21,31 @@ class NotificationService:
             "unread_count": unread_count,
             "notifications": notifications,
         }
+    
+
+    @staticmethod
+    def project_created(actor, workspace, project):
+
+        recipients = (
+            workspace.members
+            .exclude(user=actor)
+            .select_related("user")
+        )
+
+        notifications = []
+
+        for member in recipients:
+            notifications.append(
+                Notification(
+                    actor=actor,
+                    recipient=member.user,
+                    workspace=workspace,
+                    title="New Project Created",
+                    message=f"{actor.username} created '{project.name}'.",
+                    notification_type=NotificationType.PROJECT_CREATED,
+                    target_type=NotificationTargetType.PROJECT,
+                    target_id=project.id,
+                )
+            )
+
+        Notification.objects.bulk_create(notifications)
