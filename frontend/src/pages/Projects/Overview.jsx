@@ -20,7 +20,7 @@ import AIProjectSummary from './components/AIProjectSummary';
 export default function Overview() {
   return (
     <div className="flex flex-col gap-8">
-      <QuickActions />
+      {/* <QuickActions /> */}
       <ProjectPulse />
       <TaskProgress />
       <RecentActivity />

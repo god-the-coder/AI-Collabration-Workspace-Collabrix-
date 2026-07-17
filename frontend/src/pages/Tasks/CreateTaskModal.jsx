@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 /* ======================================================================
    CreateTaskModal.jsx
@@ -19,14 +19,34 @@ const ASSIGNEES = ['Ninja', 'Sarah', 'Arjun', 'Priya'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
 const MILESTONES = ['Authentication', 'Deployment', 'Release v2'];
 
-export default function CreateTaskModal() {
+export default function CreateTaskModal({ onClose }) {
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      onClick={onClose} 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
+      
       <div aria-hidden="true" className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
 
       {/* Panel */}
       <div
+        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-task-title"
@@ -45,6 +65,7 @@ export default function CreateTaskModal() {
             </p>
           </div>
           <button
+            onClick={onClose}
             type="button"
             aria-label="Close"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-300 dark:focus-visible:ring-indigo-400/40"
@@ -129,6 +150,7 @@ export default function CreateTaskModal() {
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4 dark:border-white/[0.05]">
           <button
+            onClick={onClose}
             type="button"
             className="rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100 dark:focus-visible:ring-indigo-400/40"
           >

@@ -8,6 +8,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import CreateWorkspaceModal from './CreateWorkspaceModal';
 
 const Workspaces = () => {
   // Dummy data for overview cards
@@ -157,6 +158,8 @@ const Workspaces = () => {
     </div>
   );
 
+  const [showModal, setShowModal] = useState(false);
+
   // Workspace card component
   const WorkspaceCard = ({ workspace, isHovered }) => (
     <NavLink
@@ -258,13 +261,19 @@ const Workspaces = () => {
             Manage your teams, projects, conversations, and collaboration spaces.
           </p>
         </div>
-        <button className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500">
+        <button
+          onClick={() => setShowModal(true)} 
+          className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500">
           <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
           <span className="relative flex items-center gap-1.5">
             <Plus size={14} />
             Create Workspace
           </span>
         </button>
+
+        {showModal && (
+          <CreateWorkspaceModal onClose={() => setShowModal(false)} />
+        )}
       </div>
 
       {/* Overview cards section */}

@@ -105,17 +105,17 @@ function AppRoutes() {
                         element={<WorkspaceProjects />}
                     />
 
-                    {<Route
+                    <Route
                         path="members"
                         element={<WorkspaceMembers />}
                     />
 
-                    /*<Route
+                    <Route
                         path="chat"
-                        element={<WorkspaceChat />}
+                        element={<Chats />}
                     />
 
-                    <Route
+                    {/* <Route
                         path="settings"
                         element={<WorkspaceSettings />}
                     /> */}
@@ -132,6 +132,8 @@ function AppRoutes() {
                     <Route path="tasks" element={<ProjectTasks/>}/>
 
                     <Route path="members" element={<ProjectMembers/>}/>
+
+                    <Route path="chats" element={<Chats/>}/>
                                 
                 </Route>
 

@@ -9,17 +9,22 @@ import {
   Calendar,
   Lightbulb,
 } from 'lucide-react';
+import CreateProjectModal from './CreateProjectModal';
 
 const Projects = () => {
   const [hoveredProject, setHoveredProject] = useState(null);
   const [featuredProjectId] = useState(1);
 
+  const [showModal, setShowModal] = useState(false);
+
+
+
   // Overview cards data
   const overviewStats = [
-    { label: 'Total Projects',      value: '18', icon: FolderOpen,  color: 'bg-indigo-50  text-indigo-500  dark:bg-indigo-500/10  dark:text-indigo-400'  },
-    { label: 'Active Projects',     value: '12', icon: TrendingUp,  color: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400' },
-    { label: 'Completed Projects',  value: '5',  icon: CheckCircle, color: 'bg-violet-50  text-violet-500  dark:bg-violet-500/10  dark:text-violet-400'  },
-    { label: 'Projects At Risk',    value: '1',  icon: AlertCircle, color: 'bg-red-50     text-red-500     dark:bg-red-500/10     dark:text-red-400'     },
+    { label: 'Total Projects', value: '18', icon: FolderOpen, color: 'bg-indigo-50  text-indigo-500  dark:bg-indigo-500/10  dark:text-indigo-400' },
+    { label: 'Active Projects', value: '12', icon: TrendingUp, color: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400' },
+    { label: 'Completed Projects', value: '5', icon: CheckCircle, color: 'bg-violet-50  text-violet-500  dark:bg-violet-500/10  dark:text-violet-400' },
+    { label: 'Projects At Risk', value: '1', icon: AlertCircle, color: 'bg-red-50     text-red-500     dark:bg-red-500/10     dark:text-red-400' },
   ];
 
   // Projects data
@@ -213,7 +218,8 @@ const Projects = () => {
             Manage and monitor every project across all your workspaces.
           </p>
         </div>
-        <button className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500">
+        <button onClick={() => setShowModal(true)}
+          className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500">
           <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
           <span className="relative flex items-center gap-1.5">
             <Plus size={14} />
@@ -221,6 +227,11 @@ const Projects = () => {
           </span>
         </button>
       </div>
+
+      {showModal && (
+        <CreateProjectModal
+          onClose={() => setShowModal(false)} />
+      )}
     </div>
   );
 
@@ -303,13 +314,12 @@ const Projects = () => {
   const ProjectCard = ({ project, isFeatured, isHovered }) => (
     <NavLink
       to={"projectId"}
-      className={`group relative block overflow-hidden rounded-2xl border bg-white/70 backdrop-blur-sm transition-all duration-200 dark:bg-white/[0.025] ${
-        isFeatured
+      className={`group relative block overflow-hidden rounded-2xl border bg-white/70 backdrop-blur-sm transition-all duration-200 dark:bg-white/[0.025] ${isFeatured
           ? 'border-indigo-300/70 shadow-[0_8px_30px_-12px_rgba(79,70,229,0.25)] dark:border-indigo-500/30'
           : isHovered
-          ? '-translate-y-0.5 border-zinc-300/80 shadow-[0_8px_30px_-12px_rgba(24,24,27,0.1)] dark:border-white/[0.1] dark:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]'
-          : 'border-zinc-200/70 dark:border-white/[0.06]'
-      }`}
+            ? '-translate-y-0.5 border-zinc-300/80 shadow-[0_8px_30px_-12px_rgba(24,24,27,0.1)] dark:border-white/[0.1] dark:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]'
+            : 'border-zinc-200/70 dark:border-white/[0.06]'
+        }`}
       onMouseEnter={() => setHoveredProject(project.id)}
       onMouseLeave={() => setHoveredProject(null)}
     >

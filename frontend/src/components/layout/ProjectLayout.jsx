@@ -1,24 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
+import CreateTaskModal from '../../pages/Tasks/CreateTaskModal';
 
-
-/* ======================================================================
-   ProjectLayout.jsx
-   Shared layout for every /projects/:projectId/* route.
-
-   Renders everything common across project pages:
-     - Project header (avatar, name, status/priority badges, metadata, actions)
-     - Overflow menu (⋮)
-     - Project navigation tabs
-     - <Outlet /> for the active tab's page-specific content
-
-   Page-specific content (Overview widgets, Task lists, etc.) lives in
-   the routed page components, not here. UI only — no data fetching.
-====================================================================== */
-
-// ─── DUMMY DATA ────────────────────────────────────────────────────────────
-// In the real app this would come from the route param / API call for
-// :projectId. Kept as static dummy data here.
 
 const PROJECT = {
   name: 'API Gateway Migration',
@@ -74,6 +57,7 @@ export default function ProjectLayout() {
 function ProjectHeader() {
   const status = STATUS_CONFIG[PROJECT.status] || STATUS_CONFIG.planning;
   const priority = PRIORITY_CONFIG[PROJECT.priority] || PRIORITY_CONFIG.medium;
+  const [showModal, setShowModal] = useState(false);
 
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -113,6 +97,7 @@ function ProjectHeader() {
       {/* Actions */}
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <button
+          onClick={() => setShowModal(true)}
           type="button"
           className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500"
         >
@@ -131,16 +116,23 @@ function ProjectHeader() {
           Add Member
         </button>
 
-        <button
+        {/* <button
           type="button"
           className="flex items-center gap-1.5 rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100"
         >
           <ChatIcon />
           Open Chat
-        </button>
+        </button> */}
 
         <OverflowMenu />
       </div>
+
+       {showModal && (
+
+        <CreateTaskModal onClose={() => setShowModal(false)}/>
+       )}
+
+
     </div>
   );
 }

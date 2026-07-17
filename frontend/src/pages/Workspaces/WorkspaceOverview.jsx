@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Sparkles,
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 /* ======================================================================
    pages/Workspaces/WorkspaceOverview.jsx
@@ -195,7 +196,9 @@ function ActiveProjects() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {topFour.map((project) => (
-          <ProjectCard key={project.id} project={project} />
+          <NavLink to={"/projects/projectId:"}> 
+            <ProjectCard key={project.id} project={project} />
+          </NavLink>
         ))}
       </div>
     </section>

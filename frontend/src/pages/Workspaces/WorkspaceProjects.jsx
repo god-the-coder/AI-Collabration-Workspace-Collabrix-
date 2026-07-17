@@ -1,19 +1,9 @@
-/* ======================================================================
-   pages/Workspaces/WorkspaceProjects.jsx
-   Rendered by React Router at /workspaces/:workspaceId/projects, inside
-   WorkspaceLayout's <Outlet />. WorkspaceLayout already renders the
-   breadcrumb, workspace header, and tabs — this file is the tab content only.
+import { useState } from "react";
+import CreateProjectModal from "../Projects/CreateProjectModal";
+import { NavLink } from "react-router-dom";
 
-   Purpose: "What projects belong to this workspace?" — nothing else.
-   UI only — no routing, no API calls, no business logic.
-====================================================================== */
-
-// Flip this during visual QA to preview the empty state. Not wired to any
-// real data source — purely a manual toggle for reviewing both states.
 const SHOW_EMPTY_STATE = false;
-
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-
 const STATUS_CONFIG = {
   planning: {
     label: "Planning",
@@ -207,6 +197,10 @@ const PROJECTS = [
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function WorkspaceProjects() {
+
+  const [showModal, setShowModal] = useState(false);
+
+
   return (
     <div>
       {/* Header */}
@@ -221,6 +215,7 @@ export default function WorkspaceProjects() {
         </div>
 
         <button
+          onClick={() => setShowModal(true)}
           type="button"
           className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500"
         >
@@ -230,12 +225,18 @@ export default function WorkspaceProjects() {
             Create Project
           </span>
         </button>
+
+        { showModal && (
+          <CreateProjectModal onClose={() => setShowModal(false)}/>
+        )}
       </div>
 
       {/* Summary cards */}
+      
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {SUMMARY_STATS.map((stat) => (
           <div
+
             key={stat.id}
             className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 px-5 py-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-white/[0.025]"
           >
@@ -261,11 +262,11 @@ export default function WorkspaceProjects() {
         {SHOW_EMPTY_STATE ? (
           <EmptyState />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <NavLink to={"/projects/:projectId"} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {PROJECTS.map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
-          </div>
+          </NavLink>
         )}
       </div>
     </div>
