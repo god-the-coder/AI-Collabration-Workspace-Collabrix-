@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import CreateTaskModal from '../../pages/Tasks/CreateTaskModal';
+import AddProjectMembersModal from '../../pages/Projects/AddProjectMembersModal';
 
 
 const PROJECT = {
@@ -58,6 +59,7 @@ function ProjectHeader() {
   const status = STATUS_CONFIG[PROJECT.status] || STATUS_CONFIG.planning;
   const priority = PRIORITY_CONFIG[PROJECT.priority] || PRIORITY_CONFIG.medium;
   const [showModal, setShowModal] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
 
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -109,12 +111,17 @@ function ProjectHeader() {
         </button> */}
 
         <button
+         onClick={() => setShowMemberModal(true)}
           type="button"
           className="flex items-center gap-1.5 rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100"
         >
           <UserPlusIcon />
           Add Member
         </button>
+
+        {showMemberModal && (
+          <AddProjectMembersModal onClose={() => setShowMemberModal(false)} />
+        )}
 
         {/* <button
           type="button"

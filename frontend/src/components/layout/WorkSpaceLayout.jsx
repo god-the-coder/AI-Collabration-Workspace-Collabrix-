@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
 } from 'lucide-react';
+import InviteWorkspaceMemberModal from '../../pages/Workspaces/InviteWorkspaceMemberModal';
 
 /* ======================================================================
    WorkspaceLayout.jsx
@@ -44,13 +45,14 @@ const WORKSPACE_TABS = [
   { id: 'projects', label: 'Projects', path:"projects"},
   { id: 'members', label: 'Members' ,path:"members"},
   { id: 'chat', label: 'Chat' ,path:"chat"},
+  { id: 'files', label: 'Files' ,path:"files"},
   { id: 'settings', label: 'Settings' , path:"settings"},
 ];
 
 const OVERFLOW_MENU_ITEMS = [
-  { id: 'edit', label: 'Edit Workspace', icon: Edit3 },
+  // { id: 'edit', label: 'Edit Workspace', icon: Edit3 },
   { id: 'copy', label: 'Copy Invite Link', icon: Link2 },
-  { id: 'settings', label: 'Workspace Settings', icon: SettingsIcon },
+  // { id: 'settings', label: 'Workspace Settings', icon: SettingsIcon },
 ];
 
 // ─── MAIN LAYOUT ────────────────────────────────────────────────────────────
@@ -88,6 +90,9 @@ function Breadcrumb() {
 // ─── WORKSPACE HEADER ───────────────────────────────────────────────────────
 
 function WorkspaceHeader() {
+
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
       {/* Identity */}
@@ -121,12 +126,17 @@ function WorkspaceHeader() {
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-2">
         <button
+          onClick={() => setShowModal(true)}
           type="button"
           className="flex items-center gap-1.5 rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100"
         >
           <UserPlus size={15} />
           Invite Members
         </button>
+
+        {showModal && (
+          <InviteWorkspaceMemberModal onClose={() => setShowModal(false)} />
+        )}
 
         <OverflowMenu />
       </div>
