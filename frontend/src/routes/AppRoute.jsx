@@ -22,6 +22,8 @@ import WorkspaceOverview from "../pages/Workspaces/WorkspaceOverview";
 import Workspaces from "../pages/Workspaces/Workspaces";
 import WorkspaceProjects from "../pages/Workspaces/WorkspaceProjects";
 import WorkspaceMembers from "../pages/Workspaces/WorkspaceMembers";
+import WorkspaceSettings from "../pages/Workspaces/WorkspaceSettings";
+import WorkspaceFiles from "../pages/Workspaces/WorkspaceFiles";
 
 // projects
 import Projects from "../pages/Projects/Projects";
@@ -58,18 +60,18 @@ function AppRoutes() {
             <Route
                 path="/login"
                 element={
-                    <GuestRoute>
+                    // <GuestRoute>
                         <Login />
-                    </GuestRoute>
+                    // </GuestRoute>
                 }
             />
 
             <Route
                 path="/register"
                 element={
-                    <GuestRoute>
+                    // <GuestRoute>
                         <Register />
-                    </GuestRoute>
+                    // </GuestRoute>
                 }
             />
 
@@ -115,10 +117,15 @@ function AppRoutes() {
                         element={<Chats />}
                     />
 
-                    {/* <Route
+                    <Route
                         path="settings"
                         element={<WorkspaceSettings />}
-                    /> */}
+                    />
+
+                    <Route
+                        path="files"
+                        element={<WorkspaceFiles />} 
+                    />
                 </Route>
                 
                 
