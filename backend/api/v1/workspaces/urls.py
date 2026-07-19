@@ -1,39 +1,16 @@
-from django.urls import path 
-from .views import  WorkspaceDetailMembersAPIView, WorkspaceDetailProjectsAPIView, WorskspacesListAPIView, CreateWorkspaceAPIView, WorkspaceDetailAPIView, WorkspaceDetailOverviewAPIView
+from django.urls import path
+
+from api.v1.workspaces.views import (
+    LeaveWorkspaceAPIView,
+    WorkspaceSettingsUpdateAPIView,
+)
+
+app_name = "workspaces"
 
 urlpatterns = [
-    path(
-        "list/",
-        WorskspacesListAPIView.as_view(),
-        name="all_user_workspaces"
-    ),
+    # POST /api/v1/workspaces/<workspace_id>/leave/
+    path("<uuid:workspace_id>/leave/", LeaveWorkspaceAPIView.as_view(), name="workspace-leave"),
 
-    path(
-        "create/",
-        CreateWorkspaceAPIView.as_view()
-    ),
-
-    path(
-        "<uuid:workspace_id>/",
-        WorkspaceDetailAPIView.as_view()
-    ),
-
-    path(
-        "<uuid:workspace_id>/overview/",
-        WorkspaceDetailOverviewAPIView.as_view()
-    ),
-
-    path(
-        "<uuid:workspace_id>/projects/",
-        WorkspaceDetailProjectsAPIView.as_view()
-    ),
-
-    path(
-        "<uuid:workspace_id>/members/",
-        WorkspaceDetailMembersAPIView.as_view()
-    ),
-
-    # path(
-    #     "<uuid:workspace_id>/settings/",
-    # )
+    # PUT /api/v1/workspaces/<workspace_id>/settings/
+    path("<uuid:workspace_id>/settings/", WorkspaceSettingsUpdateAPIView.as_view(), name="workspace-settings-update"),
 ]

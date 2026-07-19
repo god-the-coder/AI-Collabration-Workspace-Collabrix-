@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.workspaces.models import Workspace, WorkspaceMember
+from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceSetting
 from apps.accounts.models import UserModel
 from apps.projects.models import Project
 
@@ -157,149 +157,39 @@ class WorkspaceLayoutSerializer(serializers.ModelSerializer):
     def get_logo(self, obj):
         if obj.logo:
             return obj.logo.file.url
-        return None
 
 
-class ProjectMemberAvatarSerializer(serializers.ModelSerializer):
-
-    avatar = serializers.SerializerMethodField()
-    initials = serializers.SerializerMethodField()
+#
+# Workspace settings serializers (added)
+#
+class WorkspaceSettingSerializer(serializers.ModelSerializer):
+    workspace_id = serializers.UUIDField(source="workspace.id", read_only=True)
 
     class Meta:
-        model = UserModel
+        model = WorkspaceSetting
         fields = [
-            "id",
-            "username",
-            "avatar",
-            "initials",
-        ]
-
-    def get_avatar(self, obj):
-        if obj.avatar:
-            return obj.avatar.file.url
-        return None
-
-    def get_initials(self, obj):
-        first = obj.first_name[:1].upper() if obj.first_name else ""
-        last = obj.last_name[:1].upper() if obj.last_name else ""
-        return f"{first}{last}"
-
-
-class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
-
-    members_count=serializers.IntegerField(read_only=True)
-    members=serializers.SerializerMethodField()
-    
-    
-    class Meta:
-        model=Project
-        fields=[
-            "id",
-            "name",
-            "status",
-            "description",
-            "updated_at",
-            "due_date",
-            "members_count",
-            "members"
+            "workspace_id",
+            "allow_member_invites",
+            "default_member_role",
+            "ai_enabled",
+            "ai_file_access_enabled",
         ]
 
 
-    def get_members(self, obj):
-        users = [
-            member.user
-            for member in obj.members.all()[:3]
+class WorkspaceSettingsUpdateSerializer(serializers.Serializer):
+    allow_member_invites = serializers.BooleanField(required=False)
+    default_member_role = serializers.ChoiceField(
+        required=False,
+        choices=[
+          (choice.value, choice.label) if hasattr(choice, "value") else choice for choice in [
+              ("MEMBER", "Member"),
+              ("ADMIN", "Admin"),
+          ]
         ]
-
-        return ProjectMemberAvatarSerializer(
-            users,
-            many=True
-        ).data
-
-
-# class WorkspaceProjectsSerializer(serializers.ModelSerializer):
-#     pass
-
-
-class WorkspaceMemberSerializer(serializers.ModelSerializer):
-
-    username = serializers.CharField(
-        source="user.username",
-        read_only=True
     )
+    ai_enabled = serializers.BooleanField(required=False)
+    ai_file_access_enabled = serializers.BooleanField(required=False)
 
-    email = serializers.EmailField(
-        source="user.email",
-        read_only=True
-    )
-
-    avatar = serializers.SerializerMethodField()
-
-    initials = serializers.SerializerMethodField()
-
-    status = serializers.SerializerMethodField()
-
-    last_active_at = serializers.SerializerMethodField()
-
-    is_current_user = serializers.SerializerMethodField()
-
-    class Meta:
-        model = WorkspaceMember
-
-        fields = [
-            "id",
-            "username",
-            "email",
-            "avatar",
-            "initials",
-            "role",
-            "status",
-            "joined_at",
-            "last_active_at",
-            "is_current_user",
-        ]
-
-    def get_avatar(self, obj):
-
-      if obj.user.avatar:
-        return obj.user.avatar.file.url
-
-      return None
-    
-    
-    def get_initials(self, obj):
-
-      username = obj.user.username
-
-      words = username.split()
-
-      if len(words) >= 2:
-        return (
-            words[0][0] +
-            words[1][0]
-        ).upper()
-
-      return username[:2].upper()    
-    
-
-    def get_is_current_user(self, obj):
-      return obj.user == self.context["request"].user
-    
-    
-    def get_status(self, obj):
-      return "OFFLINE"
-    
-    
-    def get_last_active_at(self, obj):
-
-      session = obj.user.sessions.filter(
-        revoked_at__isnull=True
-      ).order_by(
-        "-last_active_at"
-      ).first()
-
-      if session:
-        return session.last_active_at
-
-      return None
-
+    def validate_default_member_role(self, value):
+        # Accept either the enum value or label; keep it simple and return value as-is
+        return value

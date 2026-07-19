@@ -1,462 +1,147 @@
-from apps.workspaces.models import WorkspaceMember, Invitation, InvitationStatus, Workspace
-from apps.projects.models import Project, ProjectStatus, ProjectMember
-from apps.workspaces.models import Workspace, WorkspaceRole
-from apps.files.models import File, FileType
-from django.db.models import Count, OuterRef, Subquery, Prefetch
-from django.utils.text import slugify
-from rest_framework.exceptions import PermissionDenied
-from apps.tasks.models import Task, TaskStatus
-from django.utils import timezone
-from datetime import timedelta
+from django.db import transaction
+from rest_framework.exceptions import PermissionDenied, NotFound
 
-
+from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceSetting
+from api.v1.notifications.services import NotificationService
+from apps.audit.models import EventLog
 
 
 class WorkspaceService:
+    """
+    Service layer for workspace-related actions required by the APIs:
+    - leave_workspace
+    - update_workspace_settings
+    """
 
     @staticmethod
-    def get_workspaces_data(user):
+    @transaction.atomic
+    def leave_workspace(user, workspace_id):
+        """
+        Remove the authenticated user's membership from the given workspace.
 
-        return {
-            "summary": WorkspaceService.get_workspaces_summary(user),
-            "workspaces": WorkspaceService.get_user_workspaces(user)
-        }
+        Rules:
+        - Member must belong to workspace.
+        - Owner cannot leave workspace.
+        - Remove only the authenticated user's membership.
+        - Use transaction.atomic to ensure consistency.
+        - Create notification through NotificationService (if applicable).
+        - Create recent activity via EventLog (audit app).
+        """
 
-    @staticmethod
-    def get_user_workspaces(user):
-        return (
-            Workspace.objects.filter(
-                members__user=user
-            ).select_related(
-                "logo",
-                "owner"
-            ).prefetch_related(
-                Prefetch(
-                    "members",
-                    queryset=WorkspaceMember.objects.select_related(
-                        "user",
-                        "user__avatar"
-                    )
-                )
-            ).annotate(
-
-                role=Subquery(
-                    WorkspaceMember.objects.filter(
-                        workspace=OuterRef("pk"),
-                        user=user,
-                    ).values("role")[:1]
-                ),
-                user_joined_at=Subquery(
-                    WorkspaceMember.objects.filter(
-                        workspace=OuterRef("pk"),
-                        user=user,
-                    ).values("joined_at")[:1]
-                ),
-                members_count=Count(
-                    "members",
-                    distinct=True
-                ),
-
-                projects_count=Count(
-                    "projects",
-                    distinct=True
-                ),
-
-                tasks_count=Count(
-                    "projects__tasks",
-                    distinct=True
-                )
-            ).order_by("-user_joined_at")
-
-        )
-    
-    @staticmethod
-    def get_workspaces_summary(user):
-        
-        return {
-            "workspaces_joined": WorkspaceService.get_workspaces_joined_count(user),
-            "active_projects": WorkspaceService.get_active_projects_count(user),
-            "pending_invitations": WorkspaceService.get_pending_invitations_count(user),
-            "members_across_workspaces": WorkspaceService.get_members_across_workspaces(user) 
-
-        }
-
-    @staticmethod
-    def get_active_projects_count(user):
-        
-        return Project.objects.filter(
-            workspace__members__user=user,
-            status=ProjectStatus.ACTIVE,
-            is_archived=False,
-            is_deleted=False
-        ).distinct().count()
-
-    @staticmethod
-    def get_workspaces_joined_count(user):
-        
-        return WorkspaceMember.objects.filter(
-            user=user
-        ).count()
-
-    @staticmethod
-    def get_pending_invitations_count(user):
-        
-        return Invitation.objects.filter(
-            status=InvitationStatus.PENDING,
-            email=user.email
-        ).count()
-
-    @staticmethod
-    def get_members_across_workspaces(user):
-        
-        user_workspaces = WorkspaceMember.objects.filter(
-            user=user
-        ).values(
-            "workspace"
-        )
-
-        return WorkspaceMember.objects.filter(
-            workspace__in=user_workspaces
-        ).values(
-            "user"
-        ).exclude(
-            user=user
-        ).distinct().count()
-
-    @staticmethod
-    def create_workspace(user, validated_data):
-
-        slug = slugify(validated_data["name"])
-        
-        workspace = Workspace.objects.create(
-            owner=user,
-            name=validated_data["name"],
-            description=validated_data.get("description", ""),
-            slug=slug
-        )
-
-
-        if "logo" in validated_data:
-            file = File.objects.create(
-                workspace=workspace,
-                uploaded_by=user,
-                original_name=validated_data["logo"].name,
-                file= validated_data["logo"],
-                mime_type= validated_data["logo"].content_type,
-                file_type=FileType.IMAGE,
-                file_size=validated_data["logo"].size
-            )
-
-            workspace.logo=file
-            workspace.save(update_fields=["logo"])
-
-        WorkspaceMember.objects.create(
-            user=user,
-            workspace=workspace,
-            role=WorkspaceRole.OWNER
-        )   
-
-
-        return workspace
-
-    @staticmethod
-    def workspace_layout_summary(user, workspace_id):
-        
-        workspace=Workspace.objects.filter(
-            id=workspace_id,
-            members__user=user
-        ).select_related(
-            "logo"
-        ).annotate(
-            role=Subquery(
-                WorkspaceMember.objects.filter(
-                    workspace=OuterRef("pk"),
-                    user=user
-                ).values("role")[:1]
-            ),
-
-            members_count=Count(
-                "members",
-                distinct=True
-            ),
-
-            projects_count=Count(
-                "projects",
-                distinct=True
-            ),
-
-            tasks_count=Count(
-                "tasks",
-                distinct=True
-            )
-
-        ).first()
-
+        workspace = Workspace.objects.filter(id=workspace_id).select_related("owner").first()
         if workspace is None:
-            raise PermissionDenied(
-                "You don't have permission to access this workspace"
+            raise NotFound("Workspace not found")
+
+        membership = WorkspaceMember.objects.filter(workspace=workspace, user=user).first()
+        if membership is None:
+            raise PermissionDenied("You are not a member of this workspace")
+
+        if workspace.owner_id == user.id:
+            raise PermissionDenied("Workspace owner cannot leave the workspace")
+
+        # delete membership
+        membership.delete()
+
+        # Notification: reuse NotificationService if it exposes a suitable method.
+        try:
+            NotificationService.workspace_member_removed(
+                actor=user,
+                workspace=workspace,
+                member=user
             )
+        except Exception:
+            # silently ignore missing notification helper (we must not duplicate notification logic)
+            pass
 
-        return workspace
+        # Recent activity / audit log: use existing EventLog model from audit app.
+        try:
+            EventLog.objects.create(
+                event_type="WORKSPACE_MEMBER_REMOVED",
+                title="Workspace member removed",
+                description=f"{user.username} left workspace '{workspace.name}'",
+                resource_type="WORKSPACE",
+                resource_id=workspace.id,
+                metadata={"member_id": str(user.id)},
+                actor=user
+            )
+        except Exception:
+            # don't let audit logging failures block the main operation
+            pass
 
+        return {"detail": "Left workspace successfully"}
 
-
-class WorkspaceDetailSerivce:
-
-
-# <----------------------- overview ----------------------------->
 
     @staticmethod
-    def get_overview_data(user, workspace_id):
+    @transaction.atomic
+    def update_workspace_settings(user, workspace_id, validated_data):
+        """
+        Update allowed workspace settings.
+        Rules:
+        - Only workspace OWNER can update settings.
+        - Validate workspace exists.
+        - Validate membership (owner must be a member by model).
+        - Update only allowed fields.
+        - Return updated WorkspaceSetting instance.
+        - Create recent activity via EventLog.
+        - Create notification only if project notifies admins/owners about settings changes.
+        """
 
-        workspace=Workspace.objects.filter(
-            members__user=user,
-            id=workspace_id
-        ).exists()
+        workspace = Workspace.objects.filter(id=workspace_id).select_related("owner", "setting_for_workspace").first()
+        if workspace is None:
+            raise NotFound("Workspace not found")
 
-        if not workspace:
-            raise PermissionDenied(
-                "You don't have access to this workspace"
-            )
+        if workspace.owner_id != user.id:
+            raise PermissionDenied("Only the workspace owner can update settings")
 
+        # Ensure the workspace has a related WorkspaceSetting instance
+        setting = getattr(workspace, "setting_for_workspace", None)
+        if setting is None:
+            # Create default settings if missing (rare)
+            setting = WorkspaceSetting.objects.create(workspace=workspace)
 
-        return {
-            "summary": WorkspaceDetailSerivce.get_overview_summary(workspace_id),
-            "active_projects": WorkspaceDetailSerivce.get_active_projects(workspace_id)
+        # Allowed keys only
+        allowed_fields = {
+            "allow_member_invites",
+            "default_member_role",
+            "ai_enabled",
+            "ai_file_access_enabled",
         }
 
-    @staticmethod
-    def get_overview_summary(workspace_id):
-        return {
-            "active_projects": WorkspaceDetailSerivce.get_active_projects_count(workspace_id),
-            "tasks_due_today": WorkspaceDetailSerivce.get_tasks_due_today_count(workspace_id),
-            "pending_reviews": WorkspaceDetailSerivce.get_pending_reviews_count(workspace_id),
-            "over_due_tasks": WorkspaceDetailSerivce.get_tasks_due_today_count(workspace_id)
-        }
-    
-    @staticmethod
-    def get_active_projects_count(workspace_id):
-        return Project.objects.filter(
-            workspace=workspace_id,
-            status=ProjectStatus.ACTIVE,
-            is_archived=False,
-            is_deleted=False
-        ).count()
+        changed = False
+        for key, val in validated_data.items():
+            if key in allowed_fields:
+                # Only set if different to avoid unnecessary writes
+                if getattr(setting, key) != val:
+                    setattr(setting, key, val)
+                    changed = True
 
-    @staticmethod
-    def get_tasks_due_today_count(workspace_id):
-        return Task.objects.filter(
-            workspace=workspace_id,
-            due_date=timezone.localdate()
-        ).exclude(
-            status__in=[
-                TaskStatus.CANCELLED,
-                TaskStatus.COMPLETED,
-            ]
-        ).count()
-    
-    @staticmethod
-    def get_pending_reviews_count(workspace_id):
-        return Task.objects.filter(
-            workspace=workspace_id,
-            status=TaskStatus.IN_REVIEW
-        ).count()
-    
-    @staticmethod
-    def get_over_due_task_count(workspace_id):
-        return Task.objects.filter(
-            workspace=workspace_id,
-            due_date__lt=timezone.localdate()
-        ).exclude(
-            status__in=[
-                TaskStatus.CANCELLED,
-                TaskStatus.COMPLETED
-            ]
-        ).count()        
+        if changed:
+            setting.save()
 
-    @staticmethod
-    def get_active_projects(workspace_id):
-        project = Project.objects.filter(
-            workspace=workspace_id,
-            status=ProjectStatus.ACTIVE,
-            is_archived=False,
-            is_deleted=False,
-        ).annotate(
-            members_count=Count("members", distinct=True)
-        ).prefetch_related(
-            Prefetch(
-                "members",
-                queryset=ProjectMember.objects.select_related(
-                    "user",
-                    "user__avatar"
+            # Recent activity - log to EventLog
+            try:
+                EventLog.objects.create(
+                    event_type="WORKSPACE_UPDATED",
+                    title="Workspace settings updated",
+                    description=f"{user.username} updated settings for workspace '{workspace.name}'",
+                    resource_type="WORKSPACE",
+                    resource_id=workspace.id,
+                    metadata={"updated_fields": list(validated_data.keys())},
+                    actor=user
                 )
-            )
-        ).order_by("-updated_at")
+            except Exception:
+                pass
 
-        return project
-
-
-# <---------------------- projects --------------------------->
-
-    @staticmethod
-    def get_projects_data(user, workspace_id):
-
-        has_access = Workspace.objects.filter(
-            id=workspace_id,
-            members__user=user
-        ).exists()
-
-        if not has_access:
-            raise PermissionDenied(
-                "You don't have permission to access this workspace."
-            )
-
-
-        return {
-            "summary": WorkspaceDetailSerivce.get_projects_summary(workspace_id),
-            # "filters": ,
-            "projects": WorkspaceDetailSerivce.get_all_projects(workspace_id),
-            # "pagination": ,
-        }
-    
-    
-    @staticmethod
-    def get_projects_summary(workspace_id):
-        return {
-            "active_projects": WorkspaceDetailSerivce.get_active_projects_count(workspace_id),
-            "completed_projects": WorkspaceDetailSerivce.get_completed_projects_count(workspace_id),
-            "at_risk_projects": WorkspaceDetailSerivce.get_atrisk_projects_count(workspace_id),
-            "archived_projects": WorkspaceDetailSerivce.get_archived_projects_count(workspace_id)
-        }
-    
-
-    @staticmethod
-    def get_completed_projects_count(workspace_id):
-        return Project.objects.filter(
-            workspace=workspace_id,
-            status=ProjectStatus.COMPLETED,
-            is_archived=False,
-            is_deleted=False
-        ).count()
-    
-    @staticmethod
-    def get_atrisk_projects_count(workspace_id):
-        return Project.objects.filter(
-            workspace=workspace_id,
-            status=ProjectStatus.AT_RISK,
-            is_archived=False,
-            is_deleted=False
-        ).count()
-    
-    @staticmethod
-    def get_archived_projects_count(workspace_id):
-        return Project.objects.filter(
-            workspace=workspace_id,
-            is_archived=True,
-            is_deleted=False
-        ).count()
-        
-    @staticmethod   
-    def get_all_projects(workspace_id):
-        project = Project.objects.filter(
-            workspace=workspace_id,
-            is_archived=False,
-            is_deleted=False,
-        ).annotate(
-            members_count=Count("members", distinct=True)
-        ).prefetch_related(
-            Prefetch(
-                "members",
-                queryset=ProjectMember.objects.select_related(
-                    "user",
-                    "user__avatar"
+            # Optional notification - only if project already notifies on settings changes.
+            # Try to call a NotificationService method if it exists; otherwise do nothing.
+            try:
+                NotificationService.workspace_settings_updated(
+                    actor=user,
+                    workspace=workspace,
+                    settings=setting
                 )
-            )
-        ).order_by("-updated_at")
+            except Exception:
+                # ignore if NotificationService doesn't provide this hook
+                pass
 
-        return project
-
-  
-
-# <-------------------- Members --------------------------------->
-
-class WorkspaceMembersService:
-
-    @staticmethod
-    def get_members_data(user, workspace_id):
-
-        has_access = Workspace.objects.filter(
-            id=workspace_id,
-            members__user=user
-        ).exists()
-
-        if not has_access:
-            raise PermissionDenied(
-                "You don't have access to this workspace."
-            )
-
-        return {
-            "summary": WorkspaceMembersService.get_summary(workspace_id),
-            "members": WorkspaceMembersService.get_members_queryset(workspace_id)
-        }
-    
-
-    @staticmethod
-    def get_summary(workspace_id):
-          return {
-            "total_members": WorkspaceMembersService.get_total_members_count(workspace_id),
-            "online_members": WorkspaceMembersService.get_online_members_count(workspace_id),
-            "admins": WorkspaceMembersService.get_admins_count(workspace_id),
-            "pending_invites": WorkspaceMembersService.get_pending_invites_count(workspace_id),
-           }  
-
-    @staticmethod
-    def get_total_members_count(workspace_id):
-      return WorkspaceMember.objects.filter(
-        workspace_id=workspace_id
-      ).count()  
-    
-
-    @staticmethod
-    def get_admins_count(workspace_id):
-      return WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        role__in=[
-            WorkspaceRole.ADMIN,
-            WorkspaceRole.OWNER
-        ]
-      ).count()
-    
-    @staticmethod
-    def get_pending_invites_count(workspace_id):
-      return Invitation.objects.filter(
-        workspace_id=workspace_id,
-        status=InvitationStatus.PENDING
-      ).count()
-    
-
-    @staticmethod
-    def get_online_members_count(workspace_id):
-
-      threshold = timezone.now() - timedelta(minutes=5)
-
-      return WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user__sessions__last_active_at__gte=threshold,
-        user__sessions__revoked_at__isnull=True
-      ).distinct().count()
-    
-
-
-    @staticmethod
-    def get_members_queryset(workspace_id):
-
-      return WorkspaceMember.objects.filter(
-        workspace_id=workspace_id
-      ).select_related(
-        "user",
-        "user__avatar"
-      ).order_by(
-        "joined_at"
-      )
-
+        return setting

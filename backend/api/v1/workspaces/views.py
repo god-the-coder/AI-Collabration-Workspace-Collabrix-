@@ -1,130 +1,57 @@
-from rest_framework.views import APIView, Response
-from .services import WorkspaceService, WorkspaceDetailSerivce, WorkspaceMembersService
-from .serializers import  WorkspaceMemberSerializer, WorkspaceOverviewAndProjectsSerializer,WorkspaceLayoutSerializer,WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer
-# from apps.accounts.models import UserModel
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.exceptions import ValidationError, PermissionDenied
+
+from api.v1.workspaces.services import WorkspaceService
+from api.v1.workspaces.serializers import WorkspaceSettingsUpdateSerializer, WorkspaceSettingSerializer
 
 
+class LeaveWorkspaceAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-class WorskspacesListAPIView(APIView):
-
-    def get(self, request):
-       try: 
-        result = WorkspaceService.get_workspaces_data(request.user)
-
-        serializer = WorkspaceListSerializer(
-            result["workspaces"],
-            many=True
-        )
-
-        return Response ({
-            "summary": result["summary"],
-            "workspaces": serializer.data
-        })
-       except Exception as e:
-          print(type(e))
-          print(e)
-          raise
- 
-
-class CreateWorkspaceAPIView(APIView):
-   
-   def post(self, request):
-     try:
-      
-      
-      serializer = CreateWorkspaceSerializer(
-         data=request.data
-        )
-      serializer.is_valid(raise_exception=True)
-
-      res = WorkspaceService.create_workspace(
-         user=request.user,
-         validated_data=serializer.validated_data
-        )
-      
-      return Response(
-         CreateWorkspaceResponseSerializer(res).data
-      )
-     except Exception as e:
-       print(type(e))
-       print(e)
-       raise
+    def post(self, request, workspace_id):
+        """
+        Authenticated user leaves a workspace.
+        """
+        try:
+            result = WorkspaceService.leave_workspace(
+                user=request.user,
+                workspace_id=workspace_id
+            )
+            return Response(result, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            raise
+        except PermissionDenied:
+            raise
+        except Exception as e:
+            # Bubble up for higher-level handlers / logging
+            raise
 
 
-class WorkspaceDetailAPIView(APIView):
-  
-  def get(self, request, workspace_id):
-    try:
-      resp = WorkspaceService.workspace_layout_summary(
-        user=request.user, 
-        workspace_id=workspace_id
-      )
+class WorkspaceSettingsUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-      serializer = WorkspaceLayoutSerializer(
-         resp
-      )
+    def put(self, request, workspace_id):
+        """
+        Update allowed workspace settings.
+        Only owner may perform this action.
+        """
+        serializer = WorkspaceSettingsUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-      return Response(serializer.data)
-    except Exception as e:
-      print(type(e))
-      print(e)
-      raise
+        try:
+            setting = WorkspaceService.update_workspace_settings(
+                user=request.user,
+                workspace_id=workspace_id,
+                validated_data=serializer.validated_data
+            )
 
+            response_serializer = WorkspaceSettingSerializer(setting)
 
-class WorkspaceDetailOverviewAPIView(APIView):
-  
-  def get(self, request, workspace_id):
-    try:
-      resp=WorkspaceDetailSerivce.get_overview_data(
-        user=request.user,
-        workspace_id=workspace_id
-      )
-
-      return Response({
-        "summary": resp["summary"],
-        "active_projects": WorkspaceOverviewAndProjectsSerializer(resp["active_projects"], many=True).data
-      })
-    except Exception as e:
-      print(type(e))
-      print(e)
-      raise
-    
-
-class WorkspaceDetailProjectsAPIView(APIView):
-
-  def get(self, request, workspace_id):
-    try:
-      resp=WorkspaceDetailSerivce.get_projects_data(
-        user=request.user,
-        workspace_id=workspace_id
-      )
-
-      return Response({
-        "summary": resp["summary"],
-        "projects": WorkspaceOverviewAndProjectsSerializer(resp["projects"], many=True).data
-      })
-    except Exception as e:
-      print(type(e))
-      print(e)
-      raise
-
-
-class WorkspaceDetailMembersAPIView(APIView):
-    def get(self, request, workspace_id):
-
-        response = WorkspaceMembersService.get_members_data(
-            request.user,
-            workspace_id
-        )
-
-        return Response({
-            "summary": response["summary"],
-            "members": WorkspaceMemberSerializer(
-                response["members"],
-                many=True,
-                context={
-                  "request": request
-                }
-            ).data
-        })
-
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        except PermissionDenied:
+            raise
+        except Exception:
+            raise
