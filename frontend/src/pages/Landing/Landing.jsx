@@ -1,4 +1,4 @@
-
+import { NavLink } from "react-router-dom";
 
 
 export default function Landing() {
@@ -53,18 +53,19 @@ export default function Landing() {
 
             {/* Right actions */}
             <div className="flex items-center gap-3">
-              <a
-                href="#"
+              <NavLink
+                to={"login"}
                 className="hidden text-[14px] font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 sm:block"
               >
                 Sign In
-              </a>
-              <a
-                href="#"
+              </NavLink>
+              <NavLink
+                
+                to={"register"}
                 className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-[13.5px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.4)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.5)] active:translate-y-0 dark:from-indigo-500 dark:to-violet-500 dark:shadow-[0_2px_12px_-3px_rgba(129,140,248,0.35)]"
               >
                 Get Started
-              </a>
+              </NavLink>
             </div>
           </div>
         </nav>
@@ -98,13 +99,13 @@ export default function Landing() {
 
               {/* CTA */}
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                <a
-                  href="#"
+                <NavLink
+                  to={"register"}
                   className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-[14px] font-semibold text-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.4)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_30px_-6px_rgba(79,70,229,0.55)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:shadow-[0_4px_20px_-4px_rgba(129,140,248,0.4)] dark:hover:shadow-[0_10px_30px_-6px_rgba(129,140,248,0.55)]"
                 >
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
                   <span className="relative">Get Started</span>
-                </a>
+                </NavLink>
                 <a
                   href="#"
                   className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white/60 px-6 py-3 text-[14px] font-semibold text-zinc-700 backdrop-blur-sm transition-all duration-200 hover:-translate-y-px hover:border-zinc-300 hover:shadow-[0_6px_16px_-6px_rgba(24,24,27,0.12)] active:translate-y-0 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:border-white/[0.14] dark:hover:shadow-[0_10px_24px_-10px_rgba(0,0,0,0.4)]"
