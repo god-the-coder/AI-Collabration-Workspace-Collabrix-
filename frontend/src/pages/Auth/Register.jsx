@@ -11,6 +11,8 @@
 // constellation, glass card shell, inputs, button) — only the card's
 // content differs.
 
+import { NavLink } from "react-router-dom";
+
 export default function Register() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#FAFAF9] text-zinc-900 transition-colors dark:bg-[#0E0F13] dark:text-zinc-100">
@@ -146,12 +148,12 @@ export default function Register() {
                 {/* Footer */}
                 <p className="mt-5 text-center text-[13.5px] text-zinc-500 dark:text-zinc-400">
                   Already have an account?{" "}
-                  <a
-                    href="#"
+                  <NavLink
+                    to={"/login"}
                     className="font-medium text-zinc-900 transition-colors hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400"
                   >
                     Sign in
-                  </a>
+                  </NavLink>
                 </p>
               </div>
             </div>

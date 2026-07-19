@@ -7,7 +7,12 @@
 // the user's system preference — this component does not manage that class
 // itself, and includes no theme-toggle UI.
 
+import { NavLink, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+
 export default function Login() {
+
+  const navigate = useNavigate("/dashboard");
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#FAFAF9] text-zinc-900 transition-colors dark:bg-[#0E0F13] dark:text-zinc-100">
       {/* ---------- Ambient background ---------- */}
@@ -114,6 +119,7 @@ export default function Login() {
                   </div>
 
                   <button
+                    onClick={() => navigate("/dashboard", {replace:true})}
                     type="button"
                     className="group/btn relative mt-1 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-[14px] font-semibold text-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.4)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_30px_-6px_rgba(79,70,229,0.55)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:shadow-[0_4px_20px_-4px_rgba(129,140,248,0.4)] dark:hover:shadow-[0_10px_30px_-6px_rgba(129,140,248,0.55)]"
                   >
@@ -140,12 +146,12 @@ export default function Login() {
                 {/* Footer */}
                 <p className="mt-5 text-center text-[13.5px] text-zinc-500 dark:text-zinc-400">
                   Don&apos;t have an account?{" "}
-                  <a
-                    href="#"
+                  <NavLink
+                    to={"/register"}
                     className="font-medium text-zinc-900 transition-colors hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400"
                   >
                     Create account
-                  </a>
+                  </NavLink>
                 </p>
               </div>
             </div>
