@@ -2,6 +2,7 @@ import React from 'react';
 import CreateProjectModal from './CreateProjectModal';
 import { useState } from 'react';
 import CreateTaskModal from '../Tasks/CreateTaskModal';
+import TaskDetailsDrawer from '../Tasks/TaskDetailsDrawer';
 
 const SHOW_EMPTY_PROJECT_STATE = false;
 
@@ -211,6 +212,10 @@ function KanbanBoard() {
 }
 
 function KanbanColumn({ column }) {
+
+  const [showTask, setShowTask] = useState(false);
+
+
   return (
     <div className="w-full shrink-0 sm:w-[290px]">
       {/* Column header */}
@@ -234,10 +239,15 @@ function KanbanColumn({ column }) {
       {column.tasks.length === 0 ? (
         <EmptyColumnState />
       ) : (
-        <div className="flex flex-col gap-2.5 sm:max-h-[calc(100vh-320px)] sm:overflow-y-auto sm:pr-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
+        <div  className="flex flex-col gap-2.5 sm:max-h-[calc(100vh-320px)] sm:overflow-y-auto sm:pr-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard key={task.id} task={task} onClick={() => setShowTask(true)}/>
           ))}
+
+
+          {showTask && (
+            <TaskDetailsDrawer onClose={() => setShowTask(false)}/>
+          )}
         </div>
       )}
     </div>
@@ -246,11 +256,12 @@ function KanbanColumn({ column }) {
 
 // ─── TASK CARD ──────────────────────────────────────────────────────────────
 
-function TaskCard({ task }) {
+function TaskCard({ task, onClick }) {
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
 
   return (
     <div
+      onClick={onClick}
       tabIndex={0}
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 p-3.5 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300/80 hover:shadow-[0_8px_30px_-12px_rgba(24,24,27,0.1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)] dark:focus-visible:ring-indigo-400/30"
     >
