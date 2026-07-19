@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 /* =====================================================================
    NOTIFICATIONS DATA
@@ -151,8 +152,10 @@ export default function Navbar({ user }) {
 
       {/* Right — Actions */}
       <div className="ml-auto flex items-center gap-1">
-        <NavbarButton aria-label="AI Assistant">
-          <SparkleIcon />
+        <NavbarButton 
+          aria-label="AI Assistant">
+           <Link to={"/ai-assistant"}><SparkleIcon /></Link>
+            
         </NavbarButton>
 
         <NotificationMenu />
