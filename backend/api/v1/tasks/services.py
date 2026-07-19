@@ -6,6 +6,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.projects.models import Project, ProjectMember
 # from apps.accounts.models import UserModel
 from django.db import transaction
+from api.v1.notifications.services import NotificationService
 
 class  TasksListService:
 
@@ -199,7 +200,15 @@ class NewTaskService:
             due_date=validated_data.get("due_date"),
             project=validated_data.get("project_id"),
             assignee=validated_data.get("assignee_id")
-        ) 
+        )
+
+        if task.assignee:
+          NotificationService.task_assigned(
+            actor=user,
+            recipient=task.assignee,
+            workspace=workspace,
+            task=task,
+          ) 
             
 
         return task
