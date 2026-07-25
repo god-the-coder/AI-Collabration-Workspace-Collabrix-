@@ -1,15 +1,16 @@
 from django.urls import path
-from .views import TasksListRetrieveAPIView, CreateTaskAPIView
 
+from api.v1.tasks.views import (
+    CompleteTaskAPIView,
+    DeleteTaskAPIView,
+)
+
+app_name = "tasks"
 
 urlpatterns = [
-    path(
-        "list/",
-        TasksListRetrieveAPIView.as_view()
-    ),
+    # POST /api/v1/tasks/<task_id>/complete/
+    path("<uuid:task_id>/complete/", CompleteTaskAPIView.as_view(), name="task-complete"),
 
-    path(
-        "create/",
-        CreateTaskAPIView.as_view()
-    ),
+    # DELETE /api/v1/tasks/<task_id>/
+    path("<uuid:task_id>/", DeleteTaskAPIView.as_view(), name="task-delete"),
 ]

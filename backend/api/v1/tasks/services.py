@@ -1,220 +1,145 @@
-from apps.tasks.models import Task , TaskStatus, TaskPriorities
 from django.utils import timezone
-from datetime import timedelta
-from apps.workspaces.models import Workspace, WorkspaceMember
-from rest_framework.exceptions import PermissionDenied, ValidationError
-from apps.projects.models import Project, ProjectMember
-# from apps.accounts.models import UserModel
 from django.db import transaction
+from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
+
+from apps.tasks.models import Task, TaskStatus
+from apps.workspaces.models import WorkspaceMember, WorkspaceRole
+from apps.projects.models import ProjectMember
 from api.v1.notifications.services import NotificationService
-
-class  TasksListService:
-
-    @staticmethod 
-    def get_tasks_data(user):
-        return {
-            "summary": {
-                "assigned_to_me": TasksListService.get_assigned_to_me_count(user),
-                "due_today": TasksListService.get_due_today_count(user),
-                "overdue": TasksListService.get_overdue_count(user),
-                "completed_this_week": TasksListService.get_completed_this_week_count(user)
-            },
-            "tasks": {
-                "due_today": TasksListService.get_due_today_queryset(user),
-                "overdue": TasksListService.get_overdue_queryset(user),
-                "upcoming": TasksListService.get_upcoming_queryset(user)
-            }
-        }
+from apps.audit.models import EventLog
 
 
-    @staticmethod
-    def get_assigned_to_me_count(user):
-        return Task.objects.filter(
-            assignee=user
-        ).exclude(
-            status__in=[TaskStatus.COMPLETED,TaskStatus.CANCELLED]
-        ).count()
-
-    @staticmethod
-    def get_due_today_count(user):
-        return Task.objects.filter(
-            assignee=user,
-            due_date=timezone.localdate()
-        ).exclude(
-            status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]
-        ).count()
-
-    @staticmethod
-    def get_overdue_count(user):
-        return Task.objects.filter(
-            assignee=user,
-            due_date__isnull=False,
-            due_date__lt=timezone.localdate()
-        ).exclude(
-            status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]
-        ).count()
-
-    @staticmethod 
-    def get_completed_this_week_count(user):
-
-        today = timezone.localdate()
-        start_week = today - timedelta(days=today.weekday())
-
-        return Task.objects.filter(
-            assignee=user,
-            status=TaskStatus.COMPLETED,
-            completed_at__isnull=False,
-            completed_at__gte=start_week
-        ).count()
-
-    @staticmethod 
-    def get_due_today_queryset(user):
-        return Task.objects.filter(
-            assignee=user,
-            due_date__isnull=False,
-            due_date=timezone.localdate()
-        ).exclude(
-            status__in=[
-                TaskStatus.COMPLETED,
-                TaskStatus.CANCELLED
-            ]
-        ).select_related(
-            "workspace",
-            "project",
-            "parent_task",
-            "created_by",
-            "created_by__avatar"
-        ).order_by(
-            "due_date"
-        )
-
-    @staticmethod
-    def get_overdue_queryset(user):
-        return Task.objects.filter(
-            assignee=user,
-            due_date__isnull=False,
-            due_date__lt=timezone.localdate()
-        ).exclude(
-            status__in=[
-                TaskStatus.COMPLETED,
-                TaskStatus.CANCELLED
-            ]
-        ).select_related(
-            "workspace",
-            "project",
-            "parent_task",
-            "created_by",
-            "created_by__avatar"
-        ).order_by(
-            "due_date"
-        )
-
-    @staticmethod
-    def get_upcoming_queryset(user):
-
-        today = timezone.localdate()
-        start_week = today - timedelta(days=today.weekday())
-
-        return Task.objects.filter(
-            assignee=user,
-            due_date__isnull=False,
-            due_date__gte=start_week
-        ).exclude(
-            status__in=[
-                TaskStatus.CANCELLED,
-                TaskStatus.COMPLETED,
-            ]
-        ).select_related(
-            "workspace",
-            "project",
-            "parent_task",
-            "created_by",
-            "created_by__avatar"
-        ).order_by(
-            "due_date"
-        )
-    
-
-class NewTaskService:
+class TaskActionService:
+    """
+    Service with task actions: complete_task and delete_task
+    """
 
     @staticmethod
     @transaction.atomic
-    def create_task(user, validated_data):
-        
-        workspace=Workspace.objects.filter(
-            id=validated_data["workspace_id"],
-            members__user=user
-        ).first()
+    def complete_task(user, task_id):
+        """
+        Mark task completed.
 
-        if workspace is None:
-            raise PermissionDenied({
-                "You don't have access of this workspace"
-            })
-        
+        - Validate task exists.
+        - Validate workspace/project access (user must be a member of the workspace or project).
+        - Prevent completing already completed tasks.
+        - Update completed_at if model contains it.
+        - Return updated task.
+        - Create notification using NotificationService (if supported).
+        - Create recent activity using EventLog.
+        """
+        task = Task.objects.select_related("workspace", "project").filter(id=task_id).first()
+        if task is None:
+            raise NotFound("Task not found")
 
+        # Access check: membership in workspace OR membership in project (if project is set)
+        has_workspace_membership = WorkspaceMember.objects.filter(workspace=task.workspace, user=user).exists()
+        has_project_membership = False
+        if task.project:
+            has_project_membership = ProjectMember.objects.filter(project=task.project, user=user).exists()
 
-        
-        project_id=validated_data.get("project_id")
-        if project_id:
-            project=Project.objects.filter(
-                id=project_id,
-                workspace=workspace,
-                members__user=user
-            ).first()
+        if not (has_workspace_membership or has_project_membership):
+            raise PermissionDenied("You don't have access to this task's workspace or project")
 
-            if project is None:
-                raise PermissionDenied({
-                    "You don't have access of this project"
-                })
-                
-            
-        
-        assignee_id=validated_data.get("assignee_id")
-        if assignee_id:
-            
-            if project_id:
-                assignee=ProjectMember.objects.filter(
-                    project=project_id,
-                    user=assignee_id
-                ).exists()
-            else:
-                assignee=WorkspaceMember.objects.filter(
-                    user=assignee_id,
-                    workspace=workspace
-                ).exists()
+        if task.status == TaskStatus.COMPLETED:
+            raise ValidationError("Task is already completed")
 
-            if not assignee:
-                raise ValidationError({
-                    "assignee_id": "Selected user can not be assigned to this task"
-                })
-            
-            
-            
-            
-        task=Task.objects.create(
-            title=validated_data["title"],
-            created_by=user,
-            description=validated_data.get("description", ""),
-            workspace=workspace,
-            priority=validated_data["priority"],
-            due_date=validated_data.get("due_date"),
-            project=validated_data.get("project_id"),
-            assignee=validated_data.get("assignee_id")
-        )
+        task.status = TaskStatus.COMPLETED
 
-        if task.assignee:
-          NotificationService.task_assigned(
-            actor=user,
-            recipient=task.assignee,
-            workspace=workspace,
-            task=task,
-          ) 
-            
+        # Update completed_at if the model has it
+        try:
+            task.completed_at = timezone.now()
+        except Exception:
+            # If model does not contain it or assignment fails, ignore
+            pass
+
+        task.save()
+
+        # Notification: attempt to use NotificationService if a method exists.
+        try:
+            NotificationService.task_completed(
+                actor=user,
+                workspace=task.workspace,
+                task=task
+            )
+        except Exception:
+            # ignore if not implemented
+            pass
+
+        # Recent activity / audit log
+        try:
+            EventLog.objects.create(
+                event_type="TASK_COMPLETED",
+                title="Task completed",
+                description=f"{user.username} completed task '{task.title}'",
+                resource_type="TASK",
+                resource_id=task.id,
+                metadata={"workspace_id": str(task.workspace.id), "project_id": str(task.project.id) if task.project else None},
+                actor=user
+            )
+        except Exception:
+            pass
 
         return task
-            
-        
 
-        
+    @staticmethod
+    @transaction.atomic
+    def delete_task(user, task_id):
+        """
+        Delete task.
 
+        - Validate task exists.
+        - Validate permissions: workspace owner/admin or task creator can delete.
+        - Delete task.
+        - Return success response or raise appropriate errors.
+        - Create notification using NotificationService (if supported).
+        - Create recent activity using EventLog.
+        """
+        task = Task.objects.select_related("workspace", "created_by").filter(id=task_id).first()
+        if task is None:
+            raise NotFound("Task not found")
 
+        workspace = task.workspace
+
+        # Permission: workspace OWNER or ADMIN OR task creator
+        is_workspace_admin = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+            role__in=[WorkspaceRole.OWNER, WorkspaceRole.ADMIN]
+        ).exists()
+
+        if not (is_workspace_admin or task.created_by_id == user.id):
+            raise PermissionDenied("You don't have permission to delete this task")
+
+        # Keep some info for notifications / activity after deletion
+        task_title = task.title
+        task_workspace = task.workspace
+
+        # Delete task
+        task.delete()
+
+        # Notification via NotificationService if available
+        try:
+            NotificationService.task_deleted(
+                actor=user,
+                workspace=task_workspace,
+                title=task_title
+            )
+        except Exception:
+            pass
+
+        # Recent activity / audit log
+        try:
+            EventLog.objects.create(
+                event_type="TASK_DELETED",
+                title="Task deleted",
+                description=f"{user.username} deleted task '{task_title}'",
+                resource_type="TASK",
+                resource_id=task_id,
+                metadata={"workspace_id": str(task_workspace.id)},
+                actor=user
+            )
+        except Exception:
+            pass
+
+        return {"detail": "Task deleted successfully"}

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole
+from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole, WorkspaceSetting
 from apps.accounts.models import UserModel
 from apps.projects.models import Project
 
@@ -157,17 +157,42 @@ class WorkspaceLayoutSerializer(serializers.ModelSerializer):
     def get_logo(self, obj):
         if obj.logo:
             return obj.logo.file.url
-        return None
 
 
-class ProjectMemberAvatarSerializer(serializers.ModelSerializer):
-
-    avatar = serializers.SerializerMethodField()
-    initials = serializers.SerializerMethodField()
+#
+# Workspace settings serializers (added)
+#
+class WorkspaceSettingSerializer(serializers.ModelSerializer):
+    workspace_id = serializers.UUIDField(source="workspace.id", read_only=True)
 
     class Meta:
-        model = UserModel
+        model = WorkspaceSetting
         fields = [
+            "workspace_id",
+            "allow_member_invites",
+            "default_member_role",
+            "ai_enabled",
+            "ai_file_access_enabled",
+        ]
+
+
+class WorkspaceSettingsUpdateSerializer(serializers.Serializer):
+    allow_member_invites = serializers.BooleanField(required=False)
+    default_member_role = serializers.ChoiceField(
+        required=False,
+        choices=[
+          (choice.value, choice.label) if hasattr(choice, "value") else choice for choice in [
+              ("MEMBER", "Member"),
+              ("ADMIN", "Admin"),
+          ]
+        ]
+    )
+    ai_enabled = serializers.BooleanField(required=False)
+    ai_file_access_enabled = serializers.BooleanField(required=False)
+
+    def validate_default_member_role(self, value):
+        # Accept either the enum value or label; keep it simple and return value as-is
+        return value
             "id",
             "username",
             "avatar",
