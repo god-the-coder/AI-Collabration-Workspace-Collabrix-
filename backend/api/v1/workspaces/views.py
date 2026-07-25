@@ -1,7 +1,8 @@
 from rest_framework.views import APIView, Response
-from .services import WorkspaceService, WorkspaceDetailSerivce, WorkspaceMembersService
-from .serializers import  WorkspaceMemberSerializer, WorkspaceOverviewAndProjectsSerializer,WorkspaceLayoutSerializer,WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer
+from .services import WorkspaceService, WorkspaceDetailSerivce, WorkspaceMembersService, InvitationService
+from .serializers import  WorkspaceMemberSerializer, WorkspaceOverviewAndProjectsSerializer,WorkspaceLayoutSerializer,WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer, InviteMemberSerializer, ChangeMemberRoleSerializer, MemberRoleResponseSerializer
 # from apps.accounts.models import UserModel
+from rest_framework import status
 
 
 
@@ -128,3 +129,177 @@ class WorkspaceDetailMembersAPIView(APIView):
             ).data
         })
 
+
+
+class InviteMemberAPIView(APIView):
+
+    def post(self, request, workspace_id):
+      try:
+        serializer = InviteMemberSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        InvitationService.invite_member(
+            user=request.user,
+            workspace_id=workspace_id,
+            validated_data=serializer.validated_data
+        )
+
+        return Response(
+            {"message": "Invitation sent successfully."},
+            status=status.HTTP_200_OK
+        )
+      except Exception as e:
+        print(type(e))
+        print(e)
+        raise
+
+
+class AcceptInvitationAPIView(APIView):
+
+    def post(self, request, token):
+      try:
+        InvitationService.accept_invitation(
+            user=request.user,
+            token=token
+        )
+
+        return Response(
+            {"message": "Invitation accepted successfully."},
+            status=status.HTTP_200_OK
+        )
+      except Exception as e:
+        print(type(e))
+        print(e)
+        raise
+
+
+class RemoveMemberAPIView(APIView):
+
+    def delete(self, request, workspace_id, user_id):
+      try:
+        InvitationService.remove_member(
+            user=request.user,
+            workspace_id=workspace_id,
+            target_user_id=user_id
+        )
+
+        return Response(
+            {"message": "Member removed successfully."},
+            status=status.HTTP_200_OK
+        )
+      except Exception as e:
+        print(type(e))
+        print(e)
+        raise
+
+
+class ChangeMemberRoleAPIView(APIView):
+
+    def patch(self, request, workspace_id, user_id):
+      try:
+        serializer = ChangeMemberRoleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = InvitationService.change_member_role(
+            user=request.user,
+            workspace_id=workspace_id,
+            target_user_id=user_id,
+            validated_data=serializer.validated_data
+        )
+
+        return Response(
+            MemberRoleResponseSerializer(result).data
+        )
+      except Exception as e:
+        print(type(e))
+        print(e)
+        raise
+
+class InviteMemberAPIView(APIView):
+
+    def post(self, request, workspace_id):
+        try:
+            serializer = InviteMemberSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            InvitationService.invite_member(
+                user=request.user,
+                workspace_id=workspace_id,
+                validated_data=serializer.validated_data,
+            )
+
+            return Response(
+                {"message": "Invitation sent successfully."},
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise
+
+
+class AcceptInvitationAPIView(APIView):
+
+    def post(self, request, token):
+        try:
+            InvitationService.accept_invitation(
+                user=request.user,
+                token=token,
+            )
+
+            return Response(
+                {"message": "Invitation accepted successfully."},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise
+
+
+class RemoveMemberAPIView(APIView):
+
+    def delete(self, request, workspace_id, user_id):
+        try:
+            InvitationService.remove_member(
+                user=request.user,
+                workspace_id=workspace_id,
+                target_user_id=user_id,
+            )
+
+            return Response(
+                {"message": "Member removed successfully."},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise
+
+
+class ChangeMemberRoleAPIView(APIView):
+
+    def patch(self, request, workspace_id, user_id):
+        try:
+            serializer = ChangeMemberRoleSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            member = InvitationService.change_member_role(
+                user=request.user,
+                workspace_id=workspace_id,
+                target_user_id=user_id,
+                validated_data=serializer.validated_data,
+            )
+
+            return Response(
+                MemberRoleResponseSerializer(member).data,
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise

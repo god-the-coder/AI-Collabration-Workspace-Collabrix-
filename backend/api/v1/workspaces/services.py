@@ -2,12 +2,20 @@ from apps.workspaces.models import WorkspaceMember, Invitation, InvitationStatus
 from apps.projects.models import Project, ProjectStatus, ProjectMember
 from apps.workspaces.models import Workspace, WorkspaceRole
 from apps.files.models import File, FileType
+from apps.accounts.models import UserModel
+from apps.notifications.models import Notification, NotificationType, NotificationTargetType
+from apps.audit.models import EventLog, EventType, EventResourceType
 from django.db.models import Count, OuterRef, Subquery, Prefetch
 from django.utils.text import slugify
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, NotFound, ValidationError
 from apps.tasks.models import Task, TaskStatus
 from django.utils import timezone
 from datetime import timedelta
+from django.db import transaction
+from django.core.mail import send_mail
+from django.conf import settings
+import uuid
+from api.v1.notifications.services import NotificationService
 
 
 
@@ -460,3 +468,442 @@ class WorkspaceMembersService:
         "joined_at"
       )
 
+
+
+class InvitationService:
+
+    @staticmethod
+    def _send_invitation_email(invitation, workspace, inviter):
+        recipient_email = invitation.email
+        if not recipient_email:
+            return
+
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+        accept_url = f"{frontend_url.rstrip('/')}/invitations/accept/{invitation.token}"
+        subject = f"You’re invited to join {workspace.name}"
+        message = (
+            f"{inviter.username} invited you to join the workspace '{workspace.name}'.\n"
+            f"Accept the invitation here: {accept_url}"
+        )
+
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com"),
+                recipient_list=[recipient_email],
+                fail_silently=False,
+            )
+        except Exception:
+            return
+
+    @staticmethod
+    def _log_invitation_event(workspace, actor, event_type, title, description, invitation, recipient_email, role):
+        EventLog.objects.create(
+            workspace=workspace,
+            actor=actor,
+            event_type=event_type,
+            title=title,
+            description=description,
+            resource_type=EventResourceType.INVITATION,
+            resource_id=invitation.id,
+            metadata={
+                "email": recipient_email,
+                "role": role,
+            },
+        )
+
+    @staticmethod
+    def invite_member(user, workspace_id, validated_data):
+
+        workspace = (
+            Workspace.objects.filter(id=workspace_id)
+            .select_related("setting_for_workspace")
+            .first()
+        )
+
+        if workspace is None:
+            raise NotFound("Workspace not found.")
+
+        membership = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+        ).first()
+
+        if membership is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace."
+            )
+
+        setting = getattr(workspace, "setting_for_workspace", None)
+        allow_member_invites = (
+            setting.allow_member_invites if setting else False
+        )
+
+        if not allow_member_invites:
+            if membership.role != WorkspaceRole.OWNER:
+                raise PermissionDenied(
+                    "Only workspace owner can invite members."
+                )
+        else:
+            if membership.role not in [
+                WorkspaceRole.OWNER,
+                WorkspaceRole.ADMIN,
+            ]:
+                raise PermissionDenied(
+                    "You don't have permission to invite members."
+                )
+
+        email = validated_data["email"]
+        role = validated_data["role"]
+
+        is_existing_member = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user__email=email,
+        ).exists()
+
+        if is_existing_member:
+            raise ValidationError(
+                "This user is already a member of this workspace."
+            )
+
+        existing_invitation = Invitation.objects.filter(
+            workspace=workspace,
+            email=email,
+        ).first()
+
+        if existing_invitation:
+
+            if (
+                existing_invitation.status == InvitationStatus.PENDING
+                and existing_invitation.expires_at > timezone.now()
+            ):
+                raise ValidationError(
+                    "An active invitation already exists for this email."
+                )
+
+            existing_invitation.token = uuid.uuid4()
+            existing_invitation.expires_at = (
+                timezone.now() + timedelta(days=7)
+            )
+            existing_invitation.status = InvitationStatus.PENDING
+            existing_invitation.role = role
+            existing_invitation.invited_by = user
+
+            existing_invitation.save(
+                update_fields=[
+                    "token",
+                    "expires_at",
+                    "status",
+                    "role",
+                    "invited_by",
+                ]
+            )
+
+            recipient = None
+            if existing_invitation.email:
+                try:
+                    recipient = UserModel.objects.get(email=existing_invitation.email)
+                except UserModel.DoesNotExist:
+                    recipient = None
+
+            if recipient is not None:
+                NotificationService.workspace_invitation_sent(
+                    actor=user,
+                    recipient=recipient,
+                    workspace=workspace,
+                    invitation=existing_invitation,
+                )
+
+            InvitationService._send_invitation_email(
+                invitation=existing_invitation,
+                workspace=workspace,
+                inviter=user,
+            )
+            InvitationService._log_invitation_event(
+                workspace=workspace,
+                actor=user,
+                event_type=EventType.INVITATION_SENT,
+                title="Workspace invitation sent",
+                description=(
+                    f"{user.username} re-invited {email} to join "
+                    f"'{workspace.name}' as {role.lower()}."
+                ),
+                invitation=existing_invitation,
+                recipient_email=email,
+                role=role,
+            )
+
+        else:
+
+            invitation = Invitation.objects.create(
+                workspace=workspace,
+                email=email,
+                role=role,
+                invited_by=user,
+                expires_at=timezone.now() + timedelta(days=7),
+            )
+
+            invited_user = UserModel.objects.filter(email=email).first()
+
+            if invited_user and invited_user != user:
+                Notification.objects.create(
+                    actor=user,
+                    recipient=invited_user,
+                    workspace=workspace,
+                    title="Workspace Invitation",
+                    message=f"{user.username} invited you to join '{workspace.name}'.",
+                    notification_type=NotificationType.WORKSPACE_INVITATION,
+                    target_type=NotificationTargetType.INVITATION,
+                    target_id=invitation.id,
+                )
+
+            InvitationService._send_invitation_email(
+                invitation=invitation,
+                workspace=workspace,
+                inviter=user,
+            )
+            InvitationService._log_invitation_event(
+                workspace=workspace,
+                actor=user,
+                event_type=EventType.INVITATION_SENT,
+                title="Workspace invitation sent",
+                description=(
+                    f"{user.username} invited {email} to join "
+                    f"'{workspace.name}' as {role.lower()}."
+                ),
+                invitation=invitation,
+                recipient_email=email,
+                role=role,
+            )
+
+    @staticmethod
+    def accept_invitation(user, token):
+
+        invitation = (
+            Invitation.objects.select_related(
+                "workspace",
+                "invited_by",
+            )
+            .filter(token=token)
+            .first()
+        )
+
+        if invitation is None:
+            raise NotFound("Invitation not found.")
+
+        if invitation.status != InvitationStatus.PENDING:
+            raise ValidationError(
+                "This invitation is no longer valid."
+            )
+
+        if invitation.expires_at <= timezone.now():
+            raise ValidationError(
+                "This invitation has expired."
+            )
+
+        if user.email != invitation.email:
+            raise PermissionDenied(
+                "This invitation was not sent to your email."
+            )
+
+        already_member = WorkspaceMember.objects.filter(
+            workspace=invitation.workspace,
+            user=user,
+        ).exists()
+
+        if already_member:
+            raise ValidationError(
+                "You are already a member of this workspace."
+            )
+
+        with transaction.atomic():
+
+            WorkspaceMember.objects.create(
+                user=user,
+                workspace=invitation.workspace,
+                role=invitation.role,
+            )
+
+            invitation.status = InvitationStatus.ACCEPTED
+            invitation.save(update_fields=["status"])
+
+            NotificationService.workspace_invitation_accepted(
+                actor=user,
+                recipient=invitation.invited_by,
+                workspace=invitation.workspace,
+                invitation=invitation,
+            )
+
+            EventLog.objects.create(
+                workspace=invitation.workspace,
+                actor=user,
+                event_type=EventType.INVITATION_ACCEPTED,
+                title="Workspace invitation accepted",
+                description=(
+                    f"{user.username} accepted the invitation to join "
+                    f"'{invitation.workspace.name}'."
+                ),
+                resource_type=EventResourceType.INVITATION,
+                resource_id=invitation.id,
+                metadata={
+                    "email": invitation.email,
+                    "role": invitation.role,
+                },
+            )
+
+    @staticmethod
+    def remove_member(user, workspace_id, target_user_id):
+
+        workspace = Workspace.objects.filter(
+            id=workspace_id
+        ).first()
+
+        if workspace is None:
+            raise NotFound("Workspace not found.")
+
+        requesting_member = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+        ).first()
+
+        if requesting_member is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace."
+            )
+
+        if requesting_member.role not in [
+            WorkspaceRole.OWNER,
+            WorkspaceRole.ADMIN,
+        ]:
+            raise PermissionDenied(
+                "You don't have permission to remove members."
+            )
+
+        target_member = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user_id=target_user_id,
+        ).first()
+
+        if target_member is None:
+            raise NotFound("Member not found.")
+
+        if target_member.role == WorkspaceRole.OWNER:
+            raise PermissionDenied(
+                "Cannot remove the workspace owner."
+            )
+
+        if target_member.user == user:
+            raise ValidationError(
+                "You cannot remove yourself."
+            )
+
+        if (
+            requesting_member.role == WorkspaceRole.ADMIN
+            and target_member.role == WorkspaceRole.ADMIN
+        ):
+            raise PermissionDenied(
+                "Admins cannot remove other admins."
+            )
+
+        target_member.delete()
+
+        NotificationService.workspace_member_removed(
+            actor=user,
+            recipient=target_member.user,
+            workspace=workspace,
+        )
+
+        EventLog.objects.create(
+            workspace=workspace,
+            actor=user,
+            event_type=EventType.WORKSPACE_MEMBER_REMOVED,
+            title="Workspace member removed",
+            description=(
+                f"{user.username} removed {target_member.user.username} from "
+                f"'{workspace.name}'."
+            ),
+            resource_type=EventResourceType.WORKSPACE,
+            resource_id=workspace.id,
+            metadata={"target_user_id": str(target_member.user_id)},
+        )
+
+    @staticmethod
+    def change_member_role(
+        user,
+        workspace_id,
+        target_user_id,
+        validated_data,
+    ):
+
+        workspace = Workspace.objects.filter(
+            id=workspace_id
+        ).first()
+
+        if workspace is None:
+            raise NotFound("Workspace not found.")
+
+        requesting_member = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+        ).first()
+
+        if requesting_member is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace."
+            )
+
+        if requesting_member.role not in [
+            WorkspaceRole.OWNER,
+            WorkspaceRole.ADMIN,
+        ]:
+            raise PermissionDenied(
+                "You don't have permission to change member roles."
+            )
+
+        target_member = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user_id=target_user_id,
+        ).first()
+
+        if target_member is None:
+            raise NotFound("Member not found.")
+
+        if target_member.role == WorkspaceRole.OWNER:
+            raise PermissionDenied(
+                "Cannot modify the owner's role."
+            )
+
+        if (
+            requesting_member.role == WorkspaceRole.ADMIN
+            and target_member.role == WorkspaceRole.ADMIN
+        ):
+            raise PermissionDenied(
+                "Admins cannot change another admin's role."
+            )
+
+        target_member.role = validated_data["role"]
+        target_member.save(update_fields=["role"])
+
+        NotificationService.workspace_member_role_changed(
+            actor=user,
+            recipient=target_member.user,
+            workspace=workspace,
+            role=target_member.role,
+        )
+
+        EventLog.objects.create(
+            workspace=workspace,
+            actor=user,
+            event_type=EventType.WORKSPACE_UPDATED,
+            title="Workspace member role updated",
+            description=(
+                f"{user.username} changed {target_member.user.username}'s role "
+                f"to {target_member.role} in '{workspace.name}'."
+            ),
+            resource_type=EventResourceType.WORKSPACE,
+            resource_id=workspace.id,
+            metadata={"target_user_id": str(target_member.user_id), "role": target_member.role},
+        )
+
+        return target_member

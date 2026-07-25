@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.workspaces.models import Workspace, WorkspaceMember
+from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole
 from apps.accounts.models import UserModel
 from apps.projects.models import Project
 
@@ -302,4 +302,35 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
         return session.last_active_at
 
       return None
+
+
+class InviteMemberSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    role = serializers.ChoiceField(
+        choices=[
+            (WorkspaceRole.ADMIN, "Admin"),
+            (WorkspaceRole.MEMBER, "Member"),
+        ],
+        required=True,
+    )
+
+
+class ChangeMemberRoleSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(
+        choices=[
+            (WorkspaceRole.ADMIN, "Admin"),
+            (WorkspaceRole.MEMBER, "Member"),
+        ],
+        required=True,
+    )
+
+
+class MemberRoleResponseSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = WorkspaceMember
+        fields = [
+            "id",
+            "role",
+        ]
 

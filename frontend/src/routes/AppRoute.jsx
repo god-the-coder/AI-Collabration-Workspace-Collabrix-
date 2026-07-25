@@ -48,10 +48,14 @@ import Settings from "../pages/Settings/Settings";
 // communication module
 import Chats from "../pages/chats/Chats";
 
+import Test from "../pages/Test";
+
 
 function AppRoutes() {
     return (
         <Routes>
+
+            <Route path="/test" element={<Test />}/>
 
             {/* Landing */}
             <Route path="/" element={<Landing />} />

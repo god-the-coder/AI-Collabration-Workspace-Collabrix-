@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import AddProjectMembersModal from './AddProjectMembersModal';
 
 /* ======================================================================
    ProjectMembers.jsx
@@ -23,8 +24,8 @@ const SHOW_EMPTY_STATE = false;
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 
 const ROLE_CONFIG = {
-  admin:  { label: 'Admin',  bg: 'bg-violet-50 dark:bg-violet-500/10', text: 'text-violet-700 dark:text-violet-400' },
-  member: { label: 'Member', bg: 'bg-zinc-100  dark:bg-white/[0.06]',  text: 'text-zinc-600  dark:text-zinc-400'  },
+  admin: { label: 'Admin', bg: 'bg-violet-50 dark:bg-violet-500/10', text: 'text-violet-700 dark:text-violet-400' },
+  member: { label: 'Member', bg: 'bg-zinc-100  dark:bg-white/[0.06]', text: 'text-zinc-600  dark:text-zinc-400' },
 };
 
 const ROW_MENU_ITEMS = ['View Profile', 'Change Role'];
@@ -32,12 +33,12 @@ const ROW_MENU_ITEMS = ['View Profile', 'Change Role'];
 // ─── DUMMY DATA ────────────────────────────────────────────────────────────
 
 const MEMBERS = [
-  { id: 'pm1', name: 'Ninja',          username: 'ninja',  role: 'admin',  joined: 'Joined 6 months ago', assignedTasks: 9,  initials: 'NJ', color: 'bg-indigo-500'  },
-  { id: 'pm2', name: 'Sarah Chen',     username: 'sarah',  role: 'admin',  joined: 'Joined 4 months ago', assignedTasks: 14, initials: 'SC', color: 'bg-violet-500'  },
-  { id: 'pm3', name: 'Arjun Patel',    username: 'arjun',  role: 'member', joined: 'Joined 3 months ago', assignedTasks: 11, initials: 'AR', color: 'bg-emerald-500' },
-  { id: 'pm4', name: 'Priya Sharma',   username: 'priya',  role: 'member', joined: 'Joined 2 months ago', assignedTasks: 6,  initials: 'PS', color: 'bg-rose-500'    },
-  { id: 'pm5', name: 'Marcus Johnson', username: 'marcus', role: 'member', joined: 'Joined 6 weeks ago',  assignedTasks: 8,  initials: 'MJ', color: 'bg-amber-500'   },
-  { id: 'pm6', name: 'Jamie Thompson', username: 'jamie',  role: 'member', joined: 'Joined 3 weeks ago',  assignedTasks: 4,  initials: 'JT', color: 'bg-cyan-500'    },
+  { id: 'pm1', name: 'Ninja', username: 'ninja', role: 'admin', joined: 'Joined 6 months ago', assignedTasks: 9, initials: 'NJ', color: 'bg-indigo-500' },
+  { id: 'pm2', name: 'Sarah Chen', username: 'sarah', role: 'admin', joined: 'Joined 4 months ago', assignedTasks: 14, initials: 'SC', color: 'bg-violet-500' },
+  { id: 'pm3', name: 'Arjun Patel', username: 'arjun', role: 'member', joined: 'Joined 3 months ago', assignedTasks: 11, initials: 'AR', color: 'bg-emerald-500' },
+  { id: 'pm4', name: 'Priya Sharma', username: 'priya', role: 'member', joined: 'Joined 2 months ago', assignedTasks: 6, initials: 'PS', color: 'bg-rose-500' },
+  { id: 'pm5', name: 'Marcus Johnson', username: 'marcus', role: 'member', joined: 'Joined 6 weeks ago', assignedTasks: 8, initials: 'MJ', color: 'bg-amber-500' },
+  { id: 'pm6', name: 'Jamie Thompson', username: 'jamie', role: 'member', joined: 'Joined 3 weeks ago', assignedTasks: 4, initials: 'JT', color: 'bg-cyan-500' },
 ];
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
@@ -56,6 +57,8 @@ export default function ProjectMembers() {
 // ─── TOOLBAR ───────────────────────────────────────────────────────────────
 
 function Toolbar() {
+
+  const [showMemberModal, setShowMemberModal] = useState(false);
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
@@ -92,6 +95,7 @@ function Toolbar() {
 
       {/* Add Member — will later open AddMemberModal */}
       <button
+        onClick={() => setShowMemberModal(true)}
         type="button"
         className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
       >
@@ -101,6 +105,10 @@ function Toolbar() {
           Add Member
         </span>
       </button>
+
+      {showMemberModal && (
+        <AddProjectMembersModal onClose={() => setShowMemberModal(false)} />
+      )}
     </div>
   );
 }

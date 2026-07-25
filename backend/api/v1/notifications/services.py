@@ -68,3 +68,67 @@ class NotificationService:
             target_type=NotificationTargetType.TASK,
             target_id=task.id,
         )
+
+    @staticmethod
+    def workspace_invitation_sent(actor, recipient, workspace, invitation):
+        if actor == recipient:
+            return
+
+        Notification.objects.create(
+            actor=actor,
+            recipient=recipient,
+            workspace=workspace,
+            title="Workspace Invitation",
+            message=f"{actor.username} invited you to join '{workspace.name}'.",
+            notification_type=NotificationType.WORKSPACE_INVITATION,
+            target_type=NotificationTargetType.INVITATION,
+            target_id=invitation.id,
+        )
+
+    @staticmethod
+    def workspace_invitation_accepted(actor, recipient, workspace, invitation):
+        if actor == recipient:
+            return
+
+        Notification.objects.create(
+            actor=actor,
+            recipient=recipient,
+            workspace=workspace,
+            title="Invitation Accepted",
+            message=f"{actor.username} accepted your invitation to join '{workspace.name}'.",
+            notification_type=NotificationType.WORKSPACE_INVITATION,
+            target_type=NotificationTargetType.INVITATION,
+            target_id=invitation.id,
+        )
+
+    @staticmethod
+    def workspace_member_removed(actor, recipient, workspace):
+        if actor == recipient:
+            return
+
+        Notification.objects.create(
+            actor=actor,
+            recipient=recipient,
+            workspace=workspace,
+            title="Removed from Workspace",
+            message=f"{actor.username} removed you from '{workspace.name}'.",
+            notification_type=NotificationType.WORKSPACE_INVITATION,
+            target_type=None,
+            target_id=None,
+        )
+
+    @staticmethod
+    def workspace_member_role_changed(actor, recipient, workspace, role):
+        if actor == recipient:
+            return
+
+        Notification.objects.create(
+            actor=actor,
+            recipient=recipient,
+            workspace=workspace,
+            title="Workspace Role Updated",
+            message=f"{actor.username} updated your role to {role.lower()} in '{workspace.name}'.",
+            notification_type=NotificationType.WORKSPACE_INVITATION,
+            target_type=None,
+            target_id=None,
+        )

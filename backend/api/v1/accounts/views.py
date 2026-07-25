@@ -4,6 +4,7 @@ from .serializers import RegisterSerializers, UserResponseSerializer, LoginSeria
 from .services import AuthService
 from rest_framework import status
 from apps.accounts.models import SessionsModel
+from config.settings import base
 # from .services import ProfilePageService
 
 
@@ -57,7 +58,7 @@ class LoginAPIView(APIView):
         )
 
 
-        return Response(
+        response =  Response(
             {
                 "message": "user logged in successfully",
                 "access": token["access"],
@@ -66,6 +67,28 @@ class LoginAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+        response.set_cookie(
+           key="access_token",
+           value=token["access"],
+           httponly=True,
+           secure=True,
+           samesite='Lax',
+           max_age=base.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds(),
+        )
+
+        response.set_cookie(
+           key="refresh_token",
+           value=token["refresh"],
+           httponly=True,
+           secure=False,
+           samesite="Lax",
+           max_age=base.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
+        )
+
+        return response
+
+    
       
       except Exception as e:
          print(type(e))
