@@ -192,7 +192,7 @@ class WorkspaceSettingsUpdateSerializer(serializers.Serializer):
 
     def validate_default_member_role(self, value):
         # Accept either the enum value or label; keep it simple and return value as-is
-        return value
+        return value[
             "id",
             "username",
             "avatar",
