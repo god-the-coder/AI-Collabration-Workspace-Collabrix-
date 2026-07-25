@@ -2,6 +2,7 @@ from rest_framework import serializers
 from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole, WorkspaceSetting
 from apps.accounts.models import UserModel
 from apps.projects.models import Project
+from api.v1.projects.serializers import ProjectMemberSerializer
 
 
 class WorkspaceMemberSerializer(serializers.Serializer):
@@ -210,6 +211,7 @@ class WorkspaceSettingsUpdateSerializer(serializers.Serializer):
         return f"{first}{last}"
 
 
+
 class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
 
     members_count=serializers.IntegerField(read_only=True)
@@ -236,7 +238,7 @@ class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
             for member in obj.members.all()[:3]
         ]
 
-        return ProjectMemberAvatarSerializer(
+        return ProjectMemberSerializer(
             users,
             many=True
         ).data
