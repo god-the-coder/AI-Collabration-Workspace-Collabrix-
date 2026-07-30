@@ -244,8 +244,7 @@ class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
         ).data
 
 
-# class WorkspaceProjectsSerializer(serializers.ModelSerializer):
-#     pass
+
 
 
 class WorkspaceMemberSerializer(serializers.ModelSerializer):

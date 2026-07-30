@@ -1,5 +1,5 @@
 from rest_framework.views import APIView, Response
-from .services import WorkspaceService, WorkspaceDetailSerivce, WorkspaceMembersService, InvitationService
+from .services import WorkspaceService, WorkspaceMembersService, InvitationService
 from .serializers import  WorkspaceMemberSerializer, WorkspaceOverviewAndProjectsSerializer,WorkspaceLayoutSerializer,WorkspaceListSerializer, CreateWorkspaceSerializer, CreateWorkspaceResponseSerializer, InviteMemberSerializer, ChangeMemberRoleSerializer, MemberRoleResponseSerializer
 # from apps.accounts.models import UserModel
 from rest_framework import status
