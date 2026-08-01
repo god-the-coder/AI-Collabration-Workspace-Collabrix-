@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { login as loginAPI, register as registerAPI} from "../api/auth.api";
+import { login as loginAPI, register as registerAPI, getCurrentUserAPI} from "../api/auth.api";
 import { data } from "react-router-dom";
 import { User } from "lucide-react";
 
@@ -9,6 +9,7 @@ const useAuthStore = create((set) => ({
     user: null,
     isAuthenticated: false,
     isLoading: false,
+    isInitializing: true,
 
 
     // actions
@@ -47,6 +48,29 @@ const useAuthStore = create((set) => ({
             set({isLoading: false});
         }
 
+    },
+
+
+    fetchCurrentUser: async () => {
+        try {
+            const resp = await getCurrentUserAPI();
+
+            set({
+                user: resp.data.profile,
+                isAuthenticated: true
+            })
+        }
+        catch (error) {
+            set({
+                user: null,
+                isAuthenticated: false
+            });
+        }
+        finally {
+            set(
+                {isInitializing: false}
+            );
+        }
     }
 
 

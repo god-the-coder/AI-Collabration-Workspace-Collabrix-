@@ -5,6 +5,7 @@ from .services import AuthService
 from rest_framework import status
 from apps.accounts.models import SessionsModel
 from config.settings import base
+from django.conf import settings
 # from .services import ProfilePageService
 
 
@@ -14,6 +15,7 @@ class RegisterAPIView(APIView):
     permission_classes = []
 
     def post(self, request):  
+     try:
         serializer = RegisterSerializers(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -22,13 +24,17 @@ class RegisterAPIView(APIView):
         return Response(
             {
                 "message": "Account created successfully",
-                "access": result["access"],
-                "refresh": result["refresh"],
+                # "access": result["access"],
+                # "refresh": result["refresh"],
                 "user": UserResponseSerializer(result["user"]).data
             },
 
             status=status.HTTP_201_CREATED,
         )
+     except Exception as e:
+        print(type(e))
+        print(e)
+        raise
     
 
 
@@ -57,12 +63,11 @@ class LoginAPIView(APIView):
            session=session
         )
 
+        is_secure = not settings.DEBUG
 
         response =  Response(
             {
                 "message": "user logged in successfully",
-                "access": token["access"],
-                "refresh": token["refresh"],
                 "user": UserResponseSerializer(result).data              
             },
             status=status.HTTP_200_OK,
@@ -72,7 +77,7 @@ class LoginAPIView(APIView):
            key="access_token",
            value=token["access"],
            httponly=True,
-           secure=True,
+           secure=is_secure,
            samesite='Lax',
            max_age=base.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds(),
         )
@@ -81,10 +86,14 @@ class LoginAPIView(APIView):
            key="refresh_token",
            value=token["refresh"],
            httponly=True,
-           secure=False,
+           secure=is_secure,
            samesite="Lax",
            max_age=base.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()
         )
+
+        print("ACCESS TOKEN GENERATED:", bool(token["access"]))
+        print("REFRESH TOKEN GENERATED:", bool(token["refresh"]))
+        print("RESPONSE COOKIES:", response.cookies)
 
         return response
 

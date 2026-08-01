@@ -4,12 +4,16 @@ export default function Test() {
 
     const testLogin = async () => {
         try {
-            const data = {
-                "password": "sample@1234",
-                "email": "sample98@gmail.com"
-            }
+            // const data = {
+            //     "username": "test0",
+            //     "first_name": "test0",
+            //     "last_name": "test0",
+            //     "email": "test0@gmail.com",
+            //     "password": "pass@1234",
+            //     "confirm_password": "pass@1234",
+            // }
 
-            const resp = await login(data)
+            const resp = await profile()
             console.log(resp.data);
         }
         catch {

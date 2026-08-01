@@ -2,11 +2,12 @@ from rest_framework.views import APIView
 from .services import ProfilePageService
 from rest_framework.response import Response
 from .serializers import ProfileSerializer, ProfileAboutSerializer, ProfileContactSerializer, ProfileWorkspaceSerializer, ProfileProjectsSerializer
-
+from rest_framework.permissions import IsAuthenticated
 
 
 class ProfilePageAPIView(APIView):
-   
+
+   permission_classes = [IsAuthenticated]   
   
    def get(self, request):
       

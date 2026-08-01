@@ -1,19 +1,37 @@
-// Register.jsx
-// Collabrix — presentational registration screen. UI only: no auth,
-// validation, state, routing, or event handling.
-//
-// Theme: styled entirely with Tailwind's `dark:` variant. This assumes the
-// host app toggles a `dark` class on a parent element (e.g. <html>) based on
-// the user's system preference — this component does not manage that class
-// itself, and includes no theme-toggle UI.
-//
-// Shares its visual language byte-for-byte with Login.jsx (background,
-// constellation, glass card shell, inputs, button) — only the card's
-// content differs.
-
 import { NavLink } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import useAuthStore from "../../store/authStore";
 
 export default function Register() {
+
+  const register = useAuthStore((state) => state.register);
+  const isLoading = useAuthStore((state) => state.isLoading);
+
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    username: "",
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    confirm_password: "",
+  });
+
+  const handleRegister = async () => {
+    try {
+      await register(formData);
+
+      navigate("/login", { replace: true });
+    }
+    catch (error) {
+      console.log(error);
+    }
+
+  }
+
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#FAFAF9] text-zinc-900 transition-colors dark:bg-[#0E0F13] dark:text-zinc-100">
       {/* ---------- Ambient background ---------- */}
@@ -97,36 +115,92 @@ export default function Register() {
                 {/* Form (presentational only — no submit/validation logic) */}
                 <div className="mt-5 space-y-2.5">
                   <Field
-                    label="Full Name"
+                    label="username"
                     type="text"
-                    placeholder="Ada Lovelace"
+                    // placeholder=""
                     icon={<UserIcon />}
+                    value={formData.username}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        username: e.target.value
+                      })
+                    }}
+                  />
+                  <Field
+                    label="first name"
+                    type="text"
+                    // placeholder="Ada Lovelace"
+                    icon={<UserIcon />}
+                    value={formData.first_name}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        first_name:e.target.value                        
+                      })
+                    }}
+                  />
+                  <Field
+                    label="last name"
+                    type="text"
+                    // placeholder="Ada Lovelace"
+                    icon={<UserIcon />}
+                    value={formData.last_name}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        last_name: e.target.value
+                      })
+                    }}
                   />
                   <Field
                     label="Email Address"
                     type="email"
                     placeholder="you@company.com"
                     icon={<MailIcon />}
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        email: e.target.value
+                      })
+                    }}
                   />
                   <Field
                     label="Password"
                     type="password"
                     placeholder="••••••••••"
                     icon={<LockIcon />}
+                    value={formData.password}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        password: e.target.value
+                      })
+                    }}
                   />
                   <Field
                     label="Confirm Password"
                     type="password"
                     placeholder="••••••••••"
                     icon={<LockIcon />}
+                    value={formData.confirm_password}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        confirm_password: e.target.value
+                      })
+                    }}
                   />
 
                   <button
                     type="button"
+                    disabled={isLoading}
+                    onClick={handleRegister}
                     className="group/btn relative mt-1 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-[14px] font-semibold text-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.4)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_10px_30px_-6px_rgba(79,70,229,0.55)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:shadow-[0_4px_20px_-4px_rgba(129,140,248,0.4)] dark:hover:shadow-[0_10px_30px_-6px_rgba(129,140,248,0.55)]"
                   >
                     <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
-                    <span className="relative">Create Account</span>
+                    <span className="relative">{isLoading ? "Creating Account..." : "Create Account"}</span>
                   </button>
                 </div>
 
@@ -183,7 +257,7 @@ function OAuthButton({ icon, label }) {
   );
 }
 
-function Field({ label, type, placeholder, icon }) {
+function Field({ label, type, placeholder, icon, value, onChange }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-[13px] font-medium text-zinc-600 dark:text-zinc-300">
@@ -196,6 +270,8 @@ function Field({ label, type, placeholder, icon }) {
         <input
           type={type}
           placeholder={placeholder}
+          value={value}
+          onChange={onChange}
           className="w-full bg-transparent text-[14px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500/70"
         />
       </span>

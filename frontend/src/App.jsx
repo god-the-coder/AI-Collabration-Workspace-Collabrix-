@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import AppRoutes from './routes/AppRoute'
 import { Route, Routes } from 'react-router-dom'
@@ -8,23 +8,14 @@ import { getProfile } from './services/auth/authService'
 
 
 
+
 function App() {
 
-  // return <AppRoutes />;
-  // const user = useAuthStore((state) => state.user);
-  // const setUser = useAuthStore((state) => state.setUser);
-  // const logout = useAuthStore((state) => state.logout);
-
-  // const testAPI = async () => {
-  //   try {
-  //     const response = await getProfile();
-
-  //     console.log(response.data);
-  //   }
-  //   catch (error) {
-  //     console.log(error);
-  //   }
-  // }
+  const fetchCurrentUser = useAuthStore((state) => state.fetchCurrentUser);
+  
+  useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
 
   return <AppRoutes/>;
 }

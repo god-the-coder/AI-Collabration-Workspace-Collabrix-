@@ -116,7 +116,7 @@ export default function Login() {
                     type="email"
                     placeholder="you@company.com"
                     icon={<MailIcon />}
-                    value={FormData.email}
+                    value={formData.email}
                     onChange={(e) => setFormData({
                       ...formData,
                       email: e.target.value,
@@ -127,7 +127,7 @@ export default function Login() {
                       label="Password"
                       type="password"
                       placeholder="••••••••••"
-                      value={formData.value}
+                      value={formData.password}
                       onChange={(e) => setFormData({
                         ...formData,
                         password: e.target.value,

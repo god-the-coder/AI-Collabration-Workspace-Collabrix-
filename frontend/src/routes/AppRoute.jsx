@@ -55,7 +55,7 @@ function AppRoutes() {
     return (
         <Routes>
 
-            <Route path="/test" element={<Test />}/>
+            <Route path="/test" element={<Test />} />
 
             {/* Landing */}
             <Route path="/" element={<Landing />} />
@@ -65,7 +65,7 @@ function AppRoutes() {
                 path="/login"
                 element={
                     // <GuestRoute>
-                        <Login />
+                    <Login />
                     // </GuestRoute>
                 }
             />
@@ -74,17 +74,18 @@ function AppRoutes() {
                 path="/register"
                 element={
                     // <GuestRoute>
-                        <Register />
+                    <Register />
                     // </GuestRoute>
                 }
             />
 
             {/* Protected Application */}
+
             <Route
                 element={
-                    // <ProtectedRoute>
+                    <ProtectedRoute>
                         <DashboardLayout />
-                    /* </ProtectedRoute> */
+                    </ProtectedRoute> 
                 }
             >
 
@@ -128,34 +129,35 @@ function AppRoutes() {
 
                     <Route
                         path="files"
-                        element={<WorkspaceFiles />} 
+                        element={<WorkspaceFiles />}
                     />
                 </Route>
-                
-                
-                
+
+
+
                 <Route
                     path="/projects/:projectId"
-                    element={<ProjectLayout/>}
+                    element={<ProjectLayout />}
                 >
-                    <Route index element={<Overview/>}/>
+                    <Route index element={<Overview />} />
 
-                    <Route path="tasks" element={<ProjectTasks/>}/>
+                    <Route path="tasks" element={<ProjectTasks />} />
 
-                    <Route path="members" element={<ProjectMembers/>}/>
+                    <Route path="members" element={<ProjectMembers />} />
 
-                    <Route path="chats" element={<Chats/>}/>
-                                
+                    <Route path="chats" element={<Chats />} />
+
                 </Route>
 
-                <Route path="/chats" element={<Chats />}/>
+                <Route path="/chats" element={<Chats />} />
 
             </Route>
 
 
-            
 
-            
+
+
+
 
         </Routes>
     );
