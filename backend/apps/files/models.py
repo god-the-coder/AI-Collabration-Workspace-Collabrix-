@@ -47,7 +47,7 @@ class File(UUIDModel, TimeStampedModel):
     # )
 
     file = models.FileField(
-        upload_to="uploads/"
+        upload_to=""
     )
 
     # file_extention = models.CharField()

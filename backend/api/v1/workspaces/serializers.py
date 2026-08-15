@@ -1,33 +1,56 @@
 from rest_framework import serializers
-from apps.workspaces.models import Workspace, WorkspaceMember, WorkspaceRole, WorkspaceSetting
+
+from apps.workspaces.models import (
+    Workspace,
+    WorkspaceMember,
+    WorkspaceRole,
+    WorkspaceSetting,
+)
+
 from apps.accounts.models import UserModel
 from apps.projects.models import Project
+
 from api.v1.projects.serializers import ProjectMemberSerializer
 
 
-class WorkspaceMemberSerializer(serializers.Serializer):
+class WorkspaceRecentMemberSerializer(serializers.Serializer):
+
     username = serializers.CharField(
         source="user.username",
-        read_only=True
+        read_only=True,
     )
 
     avatar = serializers.SerializerMethodField()
+
     initials = serializers.SerializerMethodField()
 
-    
-
     def get_avatar(self, obj):
+
         if obj.user.avatar:
             return obj.user.avatar.file.url
 
         return None
 
     def get_initials(self, obj):
-        first = obj.user.first_name[:1].upper() if obj.user.first_name else ""
-        last = obj.user.last_name[:1].upper() if obj.user.last_name else ""
+
+        first = (
+            obj.user.first_name[:1].upper()
+            if obj.user.first_name
+            else ""
+        )
+
+        last = (
+            obj.user.last_name[:1].upper()
+            if obj.user.last_name
+            else ""
+        )
 
         return f"{first}{last}"
 
+
+# ============================================================
+# Workspace list
+# ============================================================
 
 class WorkspaceListSerializer(serializers.ModelSerializer):
 
@@ -36,17 +59,27 @@ class WorkspaceListSerializer(serializers.ModelSerializer):
     recent_members = serializers.SerializerMethodField()
 
     remaining_members_count = serializers.SerializerMethodField()
-    
-    role = serializers.CharField(read_only=True)
 
-    members_count = serializers.IntegerField()
+    role = serializers.CharField(
+        read_only=True
+    )
 
-    projects_count = serializers.IntegerField()
+    members_count = serializers.IntegerField(
+        read_only=True
+    )
 
-    tasks_count = serializers.IntegerField()
+    projects_count = serializers.IntegerField(
+        read_only=True
+    )
+
+    tasks_count = serializers.IntegerField(
+        read_only=True
+    )
 
     class Meta:
+
         model = Workspace
+
         fields = [
             "id",
             "name",
@@ -56,81 +89,127 @@ class WorkspaceListSerializer(serializers.ModelSerializer):
             "members_count",
             "projects_count",
             "tasks_count",
-            # "status_type",
-            # "status_message",
-            # "recent_activity_title",
-            # "recent_activity_time",
             "recent_members",
             "remaining_members_count",
         ]
 
     def get_workspace_logo(self, obj):
+
         if obj.logo:
-            return obj.logo.file.url      
+            return obj.logo.file.url
+
         return None
-    
+
     def get_recent_members(self, obj):
-        serializer = WorkspaceMemberSerializer(
+
+        serializer = WorkspaceRecentMemberSerializer(
             obj.members.all()[:3],
-            many=True
+            many=True,
         )
+
         return serializer.data
 
     def get_remaining_members_count(self, obj):
+
         return max(
             obj.members_count - 3,
             0
         )
-    
+
+
+# ============================================================
+# Create Workspace
+# ============================================================
 
 class CreateWorkspaceSerializer(serializers.Serializer):
+
     name = serializers.CharField(
         required=True,
         min_length=5,
-        max_length=255
+        max_length=255,
     )
+
     description = serializers.CharField(
         required=False,
-        allow_blank=True
+        allow_blank=True,
     )
-    logo = serializers.FileField(required=False)
 
+    logo = serializers.FileField(
+        required=False,
+    )
+
+
+# ============================================================
+# Workspace owner
+# ============================================================
 
 class WorkspaceOwnerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model=UserModel
-        fields=[
-            "id",
-            "username"
-        ] 
-
-class CreateWorkspaceResponseSerializer(serializers.ModelSerializer):
-
-    owner = WorkspaceOwnerSerializer(read_only=True)
-
 
     class Meta:
-        model = Workspace
-        fields=[
+
+        model = UserModel
+
+        fields = [
             "id",
-            "name",
-            "owner",
-            "description"
+            "username",
         ]
 
 
+# ============================================================
+# Create Workspace response
+# ============================================================
+
+class CreateWorkspaceResponseSerializer(
+    serializers.ModelSerializer
+):
+
+    owner = WorkspaceOwnerSerializer(
+        read_only=True
+    )
+
+    class Meta:
+
+        model = Workspace
+
+        fields = [
+            "id",
+            "name",
+            "owner",
+            "description",
+        ]
+
+
+# ============================================================
+# Workspace layout
+# ============================================================
+
 class WorkspaceLayoutSerializer(serializers.ModelSerializer):
 
-    logo=serializers.SerializerMethodField()
-    initials=serializers.SerializerMethodField()
-    role=serializers.CharField(read_only=True)
-    members_count=serializers.IntegerField(read_only=True)
-    tasks_count=serializers.IntegerField(read_only=True)
-    projects_count=serializers.IntegerField(read_only=True)
-    
+    logo = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
+    role = serializers.CharField(
+        read_only=True
+    )
+
+    members_count = serializers.IntegerField(
+        read_only=True
+    )
+
+    tasks_count = serializers.IntegerField(
+        read_only=True
+    )
+
+    projects_count = serializers.IntegerField(
+        read_only=True
+    )
+
     class Meta:
-        model=Workspace
-        fields=[
+
+        model = Workspace
+
+        fields = [
             "id",
             "name",
             "description",
@@ -139,7 +218,7 @@ class WorkspaceLayoutSerializer(serializers.ModelSerializer):
             "projects_count",
             "tasks_count",
             "logo",
-            "initials"
+            "initials",
         ]
 
     def get_initials(self, obj):
@@ -147,27 +226,39 @@ class WorkspaceLayoutSerializer(serializers.ModelSerializer):
         words = obj.name.split()
 
         if len(words) >= 2:
+
             return (
-                words[0][0] +
-                words[1][0]
+                words[0][0]
+                + words[1][0]
             ).upper()
 
         return obj.name[:2].upper()
-    
 
     def get_logo(self, obj):
+
         if obj.logo:
             return obj.logo.file.url
 
+        return None
 
-#
-# Workspace settings serializers (added)
-#
-class WorkspaceSettingSerializer(serializers.ModelSerializer):
-    workspace_id = serializers.UUIDField(source="workspace.id", read_only=True)
+
+# ============================================================
+# Workspace settings response
+# ============================================================
+
+class WorkspaceSettingSerializer(
+    serializers.ModelSerializer
+):
+
+    workspace_id = serializers.UUIDField(
+        source="workspace.id",
+        read_only=True,
+    )
 
     class Meta:
+
         model = WorkspaceSetting
+
         fields = [
             "workspace_id",
             "allow_member_invites",
@@ -177,50 +268,58 @@ class WorkspaceSettingSerializer(serializers.ModelSerializer):
         ]
 
 
-class WorkspaceSettingsUpdateSerializer(serializers.Serializer):
-    allow_member_invites = serializers.BooleanField(required=False)
+# ============================================================
+# Workspace settings update
+# ============================================================
+
+class WorkspaceSettingsUpdateSerializer(
+    serializers.Serializer
+):
+
+    allow_member_invites = serializers.BooleanField(
+        required=False
+    )
+
     default_member_role = serializers.ChoiceField(
         required=False,
         choices=[
-          (choice.value, choice.label) if hasattr(choice, "value") else choice for choice in [
-              ("MEMBER", "Member"),
-              ("ADMIN", "Admin"),
-          ]
-        ]
+            ("MEMBER", "Member"),
+            ("ADMIN", "Admin"),
+        ],
     )
-    ai_enabled = serializers.BooleanField(required=False)
-    ai_file_access_enabled = serializers.BooleanField(required=False)
+
+    ai_enabled = serializers.BooleanField(
+        required=False
+    )
+
+    ai_file_access_enabled = serializers.BooleanField(
+        required=False
+    )
 
     def validate_default_member_role(self, value):
-        # Accept either the enum value or label; keep it simple and return value as-is
-        return value[
-            "id",
-            "username",
-            "avatar",
-            "initials",
-        ]
 
-    def get_avatar(self, obj):
-        if obj.avatar:
-            return obj.avatar.file.url
-        return None
-
-    def get_initials(self, obj):
-        first = obj.first_name[:1].upper() if obj.first_name else ""
-        last = obj.last_name[:1].upper() if obj.last_name else ""
-        return f"{first}{last}"
+        return value
 
 
+# ============================================================
+# Workspace overview + projects
+# ============================================================
 
-class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
+class WorkspaceOverviewAndProjectsSerializer(
+    serializers.ModelSerializer
+):
 
-    members_count=serializers.IntegerField(read_only=True)
-    members=serializers.SerializerMethodField()
-    
-    
+    members_count = serializers.IntegerField(
+        read_only=True
+    )
+
+    members = serializers.SerializerMethodField()
+
     class Meta:
-        model=Project
-        fields=[
+
+        model = Project
+
+        fields = [
             "id",
             "name",
             "status",
@@ -228,11 +327,11 @@ class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
             "updated_at",
             "due_date",
             "members_count",
-            "members"
+            "members",
         ]
 
-
     def get_members(self, obj):
+
         users = [
             member.user
             for member in obj.members.all()[:3]
@@ -244,19 +343,23 @@ class WorkspaceOverviewAndProjectsSerializer(serializers.ModelSerializer):
         ).data
 
 
+# ============================================================
+# Workspace member
+# Full serializer used by Workspace Members API
+# ============================================================
 
-
-
-class WorkspaceMemberSerializer(serializers.ModelSerializer):
+class WorkspaceMemberSerializer(
+    serializers.ModelSerializer
+):
 
     username = serializers.CharField(
         source="user.username",
-        read_only=True
+        read_only=True,
     )
 
     email = serializers.EmailField(
         source="user.email",
-        read_only=True
+        read_only=True,
     )
 
     avatar = serializers.SerializerMethodField()
@@ -270,6 +373,7 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
     is_current_user = serializers.SerializerMethodField()
 
     class Meta:
+
         model = WorkspaceMember
 
         fields = [
@@ -287,51 +391,70 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
 
-      if obj.user.avatar:
-        return obj.user.avatar.file.url
+        if obj.user.avatar:
+            return obj.user.avatar.file.url
 
-      return None
-    
-    
+        return None
+
     def get_initials(self, obj):
 
-      username = obj.user.username
+        username = obj.user.username
 
-      words = username.split()
+        words = username.split()
 
-      if len(words) >= 2:
-        return (
-            words[0][0] +
-            words[1][0]
-        ).upper()
+        if len(words) >= 2:
 
-      return username[:2].upper()    
-    
+            return (
+                words[0][0]
+                + words[1][0]
+            ).upper()
+
+        return username[:2].upper()
 
     def get_is_current_user(self, obj):
-      return obj.user == self.context["request"].user
-    
-    
+
+        request = self.context.get("request")
+
+        if request is None:
+            return False
+
+        return obj.user == request.user
+
     def get_status(self, obj):
-      return "OFFLINE"
-    
-    
+
+        return "OFFLINE"
+
     def get_last_active_at(self, obj):
 
-      session = obj.user.sessions.filter(
-        revoked_at__isnull=True
-      ).order_by(
-        "-last_active_at"
-      ).first()
+        session = (
+            obj.user.sessions
+            .filter(
+                revoked_at__isnull=True
+            )
+            .order_by(
+                "-last_active_at"
+            )
+            .first()
+        )
 
-      if session:
-        return session.last_active_at
+        if session:
+            return session.last_active_at
 
-      return None
+        return None
 
 
-class InviteMemberSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+# ============================================================
+# Invite member
+# ============================================================
+
+class InviteMemberSerializer(
+    serializers.Serializer
+):
+
+    email = serializers.EmailField(
+        required=True
+    )
+
     role = serializers.ChoiceField(
         choices=[
             (WorkspaceRole.ADMIN, "Admin"),
@@ -341,7 +464,14 @@ class InviteMemberSerializer(serializers.Serializer):
     )
 
 
-class ChangeMemberRoleSerializer(serializers.Serializer):
+# ============================================================
+# Change member role
+# ============================================================
+
+class ChangeMemberRoleSerializer(
+    serializers.Serializer
+):
+
     role = serializers.ChoiceField(
         choices=[
             (WorkspaceRole.ADMIN, "Admin"),
@@ -351,12 +481,19 @@ class ChangeMemberRoleSerializer(serializers.Serializer):
     )
 
 
-class MemberRoleResponseSerializer(serializers.ModelSerializer):
+# ============================================================
+# Member role response
+# ============================================================
+
+class MemberRoleResponseSerializer(
+    serializers.ModelSerializer
+):
 
     class Meta:
+
         model = WorkspaceMember
+
         fields = [
             "id",
             "role",
         ]
-

@@ -3,7 +3,7 @@ from decouple import config
 from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 # SECURITY
@@ -233,3 +233,7 @@ AUTHENTICATION_BACKENDS = [
     "apps.accounts.backends.EmailBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
+
+
+MEDIA_URL = "/uploads/"
+MEDIA_ROOT = BASE_DIR / "uploads"
