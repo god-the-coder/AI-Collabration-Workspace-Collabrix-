@@ -56,7 +56,7 @@ const useAuthStore = create((set) => ({
         try {
             const resp = await getCurrentUserAPI();
 
-            console.log(resp.data);
+            // console.log(resp.data);
 
             set({
                 user: resp.data.profile,

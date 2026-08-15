@@ -1,6 +1,6 @@
 from apps.workspaces.models import WorkspaceMember, Invitation, InvitationStatus, Workspace
 from apps.projects.models import Project, ProjectStatus, ProjectMember
-from apps.workspaces.models import Workspace, WorkspaceRole
+from apps.workspaces.models import Workspace, WorkspaceRole, WorkspaceSetting
 from apps.files.models import File, FileType
 from apps.accounts.models import UserModel
 from apps.notifications.models import Notification, NotificationType, NotificationTargetType
@@ -16,7 +16,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 import uuid
 from api.v1.notifications.services import NotificationService
-
+from django.db.models import Count, Prefetch, Q, Subquery, OuterRef
 
 
 
@@ -256,6 +256,130 @@ from api.v1.notifications.services import NotificationService
 #         return project
 
 class WorkspaceService:
+
+    @staticmethod
+    @transaction.atomic
+    def create_workspace(user, validated_data):
+
+      name = validated_data["name"]
+
+      base_slug = slugify(name)
+
+      if not base_slug:
+        base_slug = "workspace"
+
+      slug = base_slug
+
+      while Workspace.objects.filter(slug=slug).exists():
+        slug = f"{base_slug}-{uuid.uuid4().hex[:8]}"
+
+      workspace = Workspace.objects.create(
+        owner=user,
+        name=name,
+        slug=slug,
+        description=validated_data.get("description", ""),
+      )
+
+      WorkspaceMember.objects.create(
+        user=user,
+        workspace=workspace,
+        role=WorkspaceRole.OWNER,
+      )
+
+      WorkspaceSetting.objects.create(
+        workspace=workspace,
+        allow_member_invites=False,
+        default_member_role=WorkspaceRole.MEMBER,
+        ai_enabled=True,
+        ai_file_access_enabled=True,
+      )
+
+      return workspace
+    
+
+    @staticmethod
+    def get_workspaces_data(user):
+
+      membership_subquery = WorkspaceMember.objects.filter(
+        workspace=OuterRef("pk"),
+        user=user
+      ).values("role")[:1]
+
+      workspaces = (
+        Workspace.objects
+        .filter(
+            members__user=user
+        )
+        .select_related(
+            "logo",
+            "owner"
+        )
+        .annotate(
+            role=Subquery(
+                membership_subquery
+            ),
+
+            members_count=Count(
+                "members",
+                distinct=True
+            ),
+
+            projects_count=Count(
+                "projects",
+                filter=Q(
+                    projects__is_archived=False,
+                    projects__is_deleted=False
+                ),
+                distinct=True
+            ),
+
+            tasks_count=Count(
+                "tasks",
+                distinct=True
+            ),
+        )
+        .prefetch_related(
+            Prefetch(
+                "members",
+                queryset=(
+                    WorkspaceMember.objects
+                    .select_related(
+                        "user",
+                        "user__avatar"
+                    )
+                    .order_by("joined_at")
+                )
+            )
+        )
+        .order_by("-updated_at")
+        .distinct()
+      )
+
+      summary = {
+        "workspaces": WorkspaceMember.objects.filter(
+            user=user
+        ).count(),
+
+        "projects": Project.objects.filter(
+            workspace__members__user=user,
+            is_archived=False,
+            is_deleted=False
+        ).distinct().count(),
+
+        "assigned_tasks": Task.objects.filter(
+            assignee=user
+        ).count(),
+
+        "completed_tasks": Task.objects.filter(
+            assignee=user,
+            status=TaskStatus.COMPLETED
+        ).count(),
+      }
+
+      return {
+        "summary": summary,
+        "workspaces": workspaces,
+      }
 
     # ============================================================
     # LEAVE WORKSPACE

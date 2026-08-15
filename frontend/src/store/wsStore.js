@@ -6,10 +6,12 @@ import { globalWS } from "../api/workspace.api";
 const useWorkSpaceStore = create((set) => ({
 
     workspaces: [],
+    summary: null,
     isLoading: false,
     error: null,
 
     fetchWorkspaces: async () => {
+
         set({
             isLoading: true,
             error: null,
@@ -21,27 +23,26 @@ const useWorkSpaceStore = create((set) => ({
 
             set({
                 workspaces: resp.data.workspaces,
-            })
+                summary: resp.data.summary,
+            });
 
-            console.log("FULL RESPONSE:", resp);
-            console.log("RESPONSE DATA:", resp.data);
-            console.log("WORKSPACES:", resp.data.workspaces);
+        } catch (error) {
 
-        }
-        catch (error) {
             set({
                 error: error.response?.data || error,
-            })
+            });
 
             throw error;
-        }
-        finally {
+
+        } finally {
+
             set({
                 isLoading: false,
             });
         }
-    }
+    },
 
 }));
+
 
 export default useWorkSpaceStore;
