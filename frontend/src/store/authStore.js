@@ -7,6 +7,7 @@ import { User } from "lucide-react";
 const useAuthStore = create((set) => ({
     // states
     user: null,
+    profileData: null,
     isAuthenticated: false,
     isLoading: false,
     isInitializing: true,
@@ -55,8 +56,11 @@ const useAuthStore = create((set) => ({
         try {
             const resp = await getCurrentUserAPI();
 
+            console.log(resp.data);
+
             set({
                 user: resp.data.profile,
+                profileData: resp.data,
                 isAuthenticated: true
             })
         }

@@ -14,40 +14,8 @@ const USER = {
   memberSince: "January 2026",
 };
 
-const OVERVIEW_STATS = [
-  {
-    id: "s1",
-    label: "Workspaces",
-    value: 3,
-    icon: <LayersIcon />,
-    iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
-    iconCl: "text-indigo-500 dark:text-indigo-400",
-  },
-  {
-    id: "s2",
-    label: "Projects",
-    value: 12,
-    icon: <FolderIcon />,
-    iconBg: "bg-violet-50 dark:bg-violet-500/10",
-    iconCl: "text-violet-500 dark:text-violet-400",
-  },
-  {
-    id: "s3",
-    label: "Assigned Tasks",
-    value: 18,
-    icon: <ClipboardIcon />,
-    iconBg: "bg-amber-50 dark:bg-amber-500/10",
-    iconCl: "text-amber-500 dark:text-amber-400",
-  },
-  {
-    id: "s4",
-    label: "Completed Tasks",
-    value: 146,
-    icon: <CheckCircleIcon />,
-    iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
-    iconCl: "text-emerald-500 dark:text-emerald-400",
-  },
-];
+
+
 
 const WORKSPACES = [
   { id: "w1", name: "Product Engineering", role: "Owner" },
@@ -121,24 +89,68 @@ const RECENT_ACTIVITY = [
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 
+// const STATUS_CONFIG = {
+//   "on-track": {
+//     label: "On Track",
+//     dot: "bg-emerald-500",
+//     text: "text-emerald-700 dark:text-emerald-400",
+//     bg: "bg-emerald-50 dark:bg-emerald-500/10",
+//   },
+//   "at-risk": {
+//     label: "At Risk",
+//     dot: "bg-amber-500",
+//     text: "text-amber-700 dark:text-amber-400",
+//     bg: "bg-amber-50 dark:bg-amber-500/10",
+//   },
+//   "just-started": {
+//     label: "Just Started",
+//     dot: "bg-indigo-500",
+//     text: "text-indigo-700 dark:text-indigo-400",
+//     bg: "bg-indigo-50 dark:bg-indigo-500/10",
+//   },
+// };
+
 const STATUS_CONFIG = {
-  "on-track": {
-    label: "On Track",
+  PLANNING: {
+    label: "Planning",
+    dot: "bg-indigo-500",
+    text: "text-indigo-700 dark:text-indigo-400",
+    bg: "bg-indigo-50 dark:bg-indigo-500/10",
+  },
+
+  ACTIVE: {
+    label: "Active",
     dot: "bg-emerald-500",
     text: "text-emerald-700 dark:text-emerald-400",
     bg: "bg-emerald-50 dark:bg-emerald-500/10",
   },
-  "at-risk": {
-    label: "At Risk",
+
+  ON_HOLD: {
+    label: "On Hold",
     dot: "bg-amber-500",
     text: "text-amber-700 dark:text-amber-400",
     bg: "bg-amber-50 dark:bg-amber-500/10",
   },
-  "just-started": {
-    label: "Just Started",
-    dot: "bg-indigo-500",
-    text: "text-indigo-700 dark:text-indigo-400",
-    bg: "bg-indigo-50 dark:bg-indigo-500/10",
+
+  COMPLETED: {
+    label: "Completed",
+    dot: "bg-blue-500",
+    text: "text-blue-700 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
+  },
+
+  CANCELLED: {
+    label: "Cancelled",
+    dot: "bg-red-500",
+    text: "text-red-700 dark:text-red-400",
+    bg: "bg-red-50 dark:bg-red-500/10",
+  },
+
+  AT_RISK: {
+    label: "At Risk",
+    dot: "bg-orange-500",
+    text: "text-orange-700 dark:text-orange-400",
+    bg: "bg-orange-50 dark:bg-orange-500/10",
   },
 };
 
@@ -172,12 +184,59 @@ const ACTIVITY_CONFIG = {
 };
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
+import useAuthStore from "../../store/authStore";
+import { env } from "../../config";
 
 export default function Profile() {
+
+  const profileData = useAuthStore((state) => state.profileData);
+  console.log(profileData);
+  const user = profileData?.profile;
+  const stat = profileData?.summary;
+  const OVERVIEW_STATS = [
+    {
+      id: "s1",
+      label: "Workspaces",
+      value: stat?.workspaces,
+      icon: <LayersIcon />,
+      iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
+      iconCl: "text-indigo-500 dark:text-indigo-400",
+    },
+    {
+      id: "s2",
+      label: "Projects",
+      value: stat?.projects,
+      icon: <FolderIcon />,
+      iconBg: "bg-violet-50 dark:bg-violet-500/10",
+      iconCl: "text-violet-500 dark:text-violet-400",
+    },
+    {
+      id: "s3",
+      label: "Assigned Tasks",
+      value: stat?.assigned_tasks,
+      icon: <ClipboardIcon />,
+      iconBg: "bg-amber-50 dark:bg-amber-500/10",
+      iconCl: "text-amber-500 dark:text-amber-400",
+    },
+    {
+      id: "s4",
+      label: "Completed Tasks",
+      value: stat?.completed_tasks,
+      icon: <CheckCircleIcon />,
+      iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
+      iconCl: "text-emerald-500 dark:text-emerald-400",
+    },
+  ];
+
+  const workspaces = profileData?.workspaces;
+  const projects = profileData?.active_projects;
+
+  const API_BASE_URL = env.API_URL
+
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-6 lg:px-8">
       {/* ── Profile Header ─────────────────────────────────────────── */}
-      <ProfileHeader />
+      <ProfileHeader user={user} />
 
       {/* ── Overview Stats ─────────────────────────────────────────── */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
@@ -190,15 +249,15 @@ export default function Profile() {
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
         {/* Left column */}
         <div className="flex flex-col gap-6 lg:col-span-3">
-          <AboutSection />
-          <WorkspacesSection />
-          <ActiveProjectsSection />
+          {/* <AboutSection /> */}
+          <WorkspacesSection workspaces={workspaces}/>
+          <ActiveProjectsSection projects={projects}/>
         </div>
 
         {/* Right column */}
         <div className="flex flex-col gap-6 lg:col-span-2">
           <RecentActivitySection />
-          <ContactSection />
+          {/* <ContactSection /> */}
         </div>
       </div>
 
@@ -210,30 +269,34 @@ export default function Profile() {
 
 // ─── PROFILE HEADER ────────────────────────────────────────────────────────
 
-function ProfileHeader() {
+function ProfileHeader({ user }) {
+  console.log(env.API_URL);
   return (
     <div className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 px-6 py-6 backdrop-blur-sm dark:border-white/[0.06] dark:bg-white/[0.025] sm:px-8 sm:py-7">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
 
       <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        {/* Left — Avatar + Info */}
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-[18px] font-bold text-white sm:h-16 sm:w-16 sm:text-[20px]">
-            {USER.initials}
+            {user?.avatar ? (
+              <img src={`${env.MEDIA_URL}${user?.avatar}`} alt={user?.name || "User"} className="h-full w-full object-cover"/>
+            ) : (
+              user?.initials
+            )}
           </div>
 
           {/* Info */}
           <div className="min-w-0">
             <h1 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-[22px]">
-              {USER.name}
+              {user?.username}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-              <span>{USER.role}</span>
+              {/* <span>{USER.role}</span> */}
               <span className="text-zinc-200 dark:text-zinc-600">·</span>
-              <span>{USER.email}</span>
+              <span>{user?.email}</span>
               <span className="text-zinc-200 dark:text-zinc-600">·</span>
-              <span>Member since {USER.memberSince}</span>
+              <span>Member since {user?.date_joined}</span>
             </div>
           </div>
         </div>
@@ -291,7 +354,7 @@ function AboutSection() {
 
         <div className="divide-y divide-zinc-100 dark:divide-white/[0.04]">
           {[
-            { label: "Role", value: USER.role },
+            // { label: "Role", value: USER.role },
             { label: "Email", value: USER.email },
             { label: "Member Since", value: USER.memberSince },
           ].map((row) => (
@@ -315,14 +378,14 @@ function AboutSection() {
 
 // ─── WORKSPACES SECTION ────────────────────────────────────────────────────
 
-function WorkspacesSection() {
+function WorkspacesSection({workspaces}) {
   return (
     <section>
       <h2 className="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
         Workspaces
       </h2>
 
-      {WORKSPACES.length === 0 ? (
+      {workspaces.length === 0 ? (
         <EmptyState
           icon={<LayersIcon />}
           title="No Workspaces"
@@ -330,7 +393,7 @@ function WorkspacesSection() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {WORKSPACES.map((ws) => (
+          {workspaces.map((ws) => (
             <div
               key={ws.id}
               className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 px-5 py-4 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300/80 hover:shadow-[0_8px_30px_-12px_rgba(24,24,27,0.12)] dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]"
@@ -348,9 +411,8 @@ function WorkspacesSection() {
                 </div>
 
                 <span
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium ${
-                    ROLE_STYLE[ws.role] || ROLE_STYLE.Member
-                  }`}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium ${ROLE_STYLE[ws.role] || ROLE_STYLE.Member
+                    }`}
                 >
                   {ws.role}
                 </span>
@@ -365,7 +427,7 @@ function WorkspacesSection() {
 
 // ─── ACTIVE PROJECTS SECTION ───────────────────────────────────────────────
 
-function ActiveProjectsSection() {
+function ActiveProjectsSection({projects}) {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
@@ -388,13 +450,13 @@ function ActiveProjectsSection() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {ACTIVE_PROJECTS.map((project) => {
+          {projects.map((project) => {
             const status =
-              STATUS_CONFIG[project.status] || STATUS_CONFIG["on-track"];
+              STATUS_CONFIG[project?.status] || STATUS_CONFIG["on-track"];
 
             return (
               <div
-                key={project.id}
+                key={project?.id}
                 className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 p-5 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300/80 hover:shadow-[0_8px_30px_-12px_rgba(24,24,27,0.12)] dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]"
               >
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
@@ -403,10 +465,10 @@ function ActiveProjectsSection() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-                      {project.name}
+                      {project?.name}
                     </h3>
                     <p className="mt-0.5 text-[12px] text-zinc-400 dark:text-zinc-500">
-                      {project.workspace}
+                      {/* {project.workspace} */}
                     </p>
                   </div>
                   <span
@@ -423,7 +485,7 @@ function ActiveProjectsSection() {
                       Progress
                     </span>
                     <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                      {project.progress}%
+                      {project?.progress}%
                     </span>
                   </div>
                   <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-white/[0.06]">

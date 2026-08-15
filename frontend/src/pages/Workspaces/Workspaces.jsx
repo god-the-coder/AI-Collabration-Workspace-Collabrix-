@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Users,
   Briefcase,
@@ -9,8 +9,23 @@ import {
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import CreateWorkspaceModal from './CreateWorkspaceModal';
+// import { globalWS } from '../../api/workspace.api';
+import useWorkSpaceStore from '../../store/wsStore';
 
 const Workspaces = () => {
+
+  const workspaces = useWorkSpaceStore((state) => state.workspaces);
+  const isLoading = useWorkSpaceStore((state) => state.isLoading);
+  const fetchWorkspaces = useWorkSpaceStore((state) => state.fetchWorkspaces);
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  console.log(workspaces);
+
+
+
   // Dummy data for overview cards
   const overviewStats = [
     { label: 'Workspaces Joined',             value: '12', icon: Briefcase,  color: 'bg-indigo-50  text-indigo-500  dark:bg-indigo-500/10  dark:text-indigo-400'  },
