@@ -332,15 +332,12 @@ class WorkspaceOverviewAndProjectsSerializer(
 
     def get_members(self, obj):
 
-        users = [
-            member.user
-            for member in obj.members.all()[:3]
-        ]
+      members = obj.members.all()[:3]
 
-        return ProjectMemberSerializer(
-            users,
-            many=True
-        ).data
+      return ProjectMemberSerializer(
+        members,
+        many=True
+      ).data
 
 
 # ============================================================

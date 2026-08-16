@@ -156,7 +156,6 @@ class WorkspaceDetailOverviewAPIView(APIView):
                     ).data
                 )
             })
-
         except Exception as e:
             print(type(e))
             print(e)

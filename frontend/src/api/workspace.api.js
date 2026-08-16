@@ -7,3 +7,15 @@ export const globalWS = () => {
 export const createWS = (data) => {
     return api.post("v1/workspaces/create/", data)
 }
+
+export const localWS = (workspaceId) => {
+    return api.get(`v1/workspaces/${workspaceId}/`)
+}
+
+export const overviewWS = (workspaceId) => {
+    return api.get(`v1/workspaces/${workspaceId}/overview/`)
+}
+
+export const projectWS = (workspaceId) => {
+    return api.get(`v1/workspaces/${workspaceId}/projects/`)
+}

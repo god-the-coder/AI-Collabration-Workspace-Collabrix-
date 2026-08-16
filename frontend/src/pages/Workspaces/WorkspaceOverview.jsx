@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
 import {
   FolderOpen,
   CheckSquare,
@@ -10,118 +11,102 @@ import {
   MessageSquare,
   Sparkles,
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
+import { overviewWS } from '../../api/workspace.api';
 
-/* ======================================================================
-   pages/Workspaces/WorkspaceOverview.jsx
-   Rendered by React Router as the index route inside WorkspaceLayout's
-   <Outlet />. WorkspaceLayout already renders the breadcrumb, workspace
-   header, and tabs — this file contains ONLY the Overview tab's content.
 
-   Responsibility: "Give a quick overview of the current workspace."
-   Everything else (Projects, Members, Chat, Settings) lives in its own
-   route/tab. UI only — no routing, no API calls, no business logic.
-====================================================================== */
+// import React, { useEffect, useState } from "react";
+// import { NavLink, useParams } from "react-router-dom";
+// import { overviewWS } from "../../api/workspace.api";
 
-// ─── DUMMY DATA ────────────────────────────────────────────────────────────
 
-const PULSE_STATS = [
-  {
-    id: 'ps1',
-    label: 'Active Projects',
-    value: '8',
-    icon: FolderOpen,
-    iconBg: 'bg-indigo-50 dark:bg-indigo-500/10',
-    iconCl: 'text-indigo-500 dark:text-indigo-400',
-  },
-  {
-    id: 'ps2',
-    label: 'Tasks Due Today',
-    value: '14',
-    icon: CheckSquare,
-    iconBg: 'bg-amber-50 dark:bg-amber-500/10',
-    iconCl: 'text-amber-500 dark:text-amber-400',
-  },
-  {
-    id: 'ps3',
-    label: 'Pending Reviews',
-    value: '5',
-    icon: AlertCircle,
-    iconBg: 'bg-violet-50 dark:bg-violet-500/10',
-    iconCl: 'text-violet-500 dark:text-violet-400',
-  },
-  {
-    id: 'ps4',
-    label: 'Overdue Tasks',
-    value: '2',
-    icon: Clock,
-    iconBg: 'bg-red-50 dark:bg-red-500/10',
-    iconCl: 'text-red-500 dark:text-red-400',
-  },
-];
+const getMediaUrl = (url) => {
+  if (!url) return null;
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  const baseUrl = apiUrl.replace(/\/api\/?$/, "");
+
+  return `${baseUrl}${url}`;
+};
+
+// const getMediaUrl = (url) => {
+//   if (!url) return null;
+
+//   const finalUrl =
+//     `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}${url}`;
+
+//   console.log("Original avatar:", url);
+//   console.log("VITE_API_URL:", import.meta.env.VITE_API_URL);
+//   console.log("Final avatar URL:", finalUrl);
+
+//   return finalUrl;
+// };
+
+
 
 const MEMBER_COLORS = [
   'bg-indigo-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
   'bg-rose-500', 'bg-cyan-500', 'bg-orange-500',
 ];
 
-const ACTIVE_PROJECTS = [
-  {
-    id: 1,
-    name: 'API Gateway Migration',
-    progress: 68,
-    status: 'In Progress',
-    dueDate: '2024-07-20',
-    members: 5,
-    lastActivity: '30 minutes ago',
-    avatars: ['SC', 'MJ', 'AR', 'TP'],
-  },
-  {
-    id: 2,
-    name: 'Dashboard Redesign',
-    progress: 45,
-    status: 'In Progress',
-    dueDate: '2024-08-10',
-    members: 4,
-    lastActivity: '1 hour ago',
-    avatars: ['ER', 'CJ', 'NP'],
-  },
-  {
-    id: 3,
-    name: 'Authentication Service',
-    progress: 82,
-    status: 'In Progress',
-    dueDate: '2024-06-30',
-    members: 3,
-    lastActivity: '45 minutes ago',
-    avatars: ['JT', 'PP'],
-  },
-  {
-    id: 4,
-    name: 'Mobile Application',
-    progress: 35,
-    status: 'Planning',
-    dueDate: '2024-09-15',
-    members: 6,
-    lastActivity: '2 hours ago',
-    avatars: ['SK', 'MC', 'RK', 'AS'],
-  },
-];
+// const ACTIVE_PROJECTS = [
+//   {
+//     id: 1,
+//     name: 'API Gateway Migration',
+//     progress: 68,
+//     status: 'In Progress',
+//     dueDate: '2024-07-20',
+//     members: 5,
+//     lastActivity: '30 minutes ago',
+//     avatars: ['SC', 'MJ', 'AR', 'TP'],
+//   },
+//   {
+//     id: 2,
+//     name: 'Dashboard Redesign',
+//     progress: 45,
+//     status: 'In Progress',
+//     dueDate: '2024-08-10',
+//     members: 4,
+//     lastActivity: '1 hour ago',
+//     avatars: ['ER', 'CJ', 'NP'],
+//   },
+//   {
+//     id: 3,
+//     name: 'Authentication Service',
+//     progress: 82,
+//     status: 'In Progress',
+//     dueDate: '2024-06-30',
+//     members: 3,
+//     lastActivity: '45 minutes ago',
+//     avatars: ['JT', 'PP'],
+//   },
+//   {
+//     id: 4,
+//     name: 'Mobile Application',
+//     progress: 35,
+//     status: 'Planning',
+//     dueDate: '2024-09-15',
+//     members: 6,
+//     lastActivity: '2 hours ago',
+//     avatars: ['SK', 'MC', 'RK', 'AS'],
+//   },
+// ];
 
 const RECENT_ACTIVITY = [
-  { id: 1, type: 'created',   text: 'Sarah created a new project: Mobile Application', time: '2 hours ago' },
+  { id: 1, type: 'created', text: 'Sarah created a new project: Mobile Application', time: '2 hours ago' },
   { id: 2, type: 'completed', text: 'Arjun completed Authentication middleware review', time: '4 hours ago' },
-  { id: 3, type: 'updated',   text: 'API Documentation was updated',                    time: '6 hours ago' },
-  { id: 4, type: 'joined',    text: 'Jamie Thompson joined the workspace',               time: '1 day ago' },
-  { id: 5, type: 'commented', text: 'Priya commented on Dashboard Redesign',             time: '1 day ago' },
+  { id: 3, type: 'updated', text: 'API Documentation was updated', time: '6 hours ago' },
+  { id: 4, type: 'joined', text: 'Jamie Thompson joined the workspace', time: '1 day ago' },
+  { id: 5, type: 'commented', text: 'Priya commented on Dashboard Redesign', time: '1 day ago' },
 ];
 
 const ACTIVITY_CONFIG = {
-  created:   { icon: FolderOpen,    iconBg: 'bg-indigo-50  dark:bg-indigo-500/10',  iconCl: 'text-indigo-500  dark:text-indigo-400'  },
-  completed: { icon: CheckSquare,   iconBg: 'bg-emerald-50 dark:bg-emerald-500/10', iconCl: 'text-emerald-500 dark:text-emerald-400' },
-  updated:   { icon: FileText,      iconBg: 'bg-violet-50  dark:bg-violet-500/10',  iconCl: 'text-violet-500  dark:text-violet-400'  },
-  joined:    { icon: UserPlus,      iconBg: 'bg-amber-50   dark:bg-amber-500/10',   iconCl: 'text-amber-500   dark:text-amber-400'   },
-  commented: { icon: MessageSquare, iconBg: 'bg-blue-50    dark:bg-blue-500/10',    iconCl: 'text-blue-500    dark:text-blue-400'    },
+  created: { icon: FolderOpen, iconBg: 'bg-indigo-50  dark:bg-indigo-500/10', iconCl: 'text-indigo-500  dark:text-indigo-400' },
+  completed: { icon: CheckSquare, iconBg: 'bg-emerald-50 dark:bg-emerald-500/10', iconCl: 'text-emerald-500 dark:text-emerald-400' },
+  updated: { icon: FileText, iconBg: 'bg-violet-50  dark:bg-violet-500/10', iconCl: 'text-violet-500  dark:text-violet-400' },
+  joined: { icon: UserPlus, iconBg: 'bg-amber-50   dark:bg-amber-500/10', iconCl: 'text-amber-500   dark:text-amber-400' },
+  commented: { icon: MessageSquare, iconBg: 'bg-blue-50    dark:bg-blue-500/10', iconCl: 'text-blue-500    dark:text-blue-400' },
 };
 
 const AI_INSIGHTS = [
@@ -134,10 +119,32 @@ const AI_INSIGHTS = [
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function WorkspaceOverview() {
+  const [summary, setSummary] = useState([]);
+  const [projects, setProjects] = useState([]);
+
+  const { workspaceId } = useParams();
+
+  useEffect(() => {
+    const fetchOverview = async () => {
+      try {
+        const resp = await overviewWS(workspaceId);
+        console.log(resp.data);
+        setSummary(resp.data.summary);
+        setProjects(resp.data.active_projects);
+      }
+      catch (error) {
+        console.log(error);
+      }
+    }
+
+    fetchOverview();
+  }, [workspaceId]);
+
+
   return (
     <div className="flex flex-col gap-8">
-      <WorkspacePulse />
-      <ActiveProjects />
+      <WorkspacePulse summary={summary} />
+      <ActiveProjects projects={projects} />
       <RecentActivitySection />
       <AISummary />
     </div>
@@ -146,7 +153,44 @@ export default function WorkspaceOverview() {
 
 // ─── WORKSPACE PULSE ─────────────────────────────────────────────────────────
 
-function WorkspacePulse() {
+function WorkspacePulse({ summary }) {
+
+  const PULSE_STATS = [
+    {
+      id: 'ps1',
+      label: 'Active Projects',
+      value: summary.active_projects,
+      icon: FolderOpen,
+      iconBg: 'bg-indigo-50 dark:bg-indigo-500/10',
+      iconCl: 'text-indigo-500 dark:text-indigo-400',
+    },
+    {
+      id: 'ps2',
+      label: 'Tasks Due Today',
+      value: summary.tasks_due_today,
+      icon: CheckSquare,
+      iconBg: 'bg-amber-50 dark:bg-amber-500/10',
+      iconCl: 'text-amber-500 dark:text-amber-400',
+    },
+    {
+      id: 'ps3',
+      label: 'Pending Reviews',
+      value: summary.pending_reviews,
+      icon: AlertCircle,
+      iconBg: 'bg-violet-50 dark:bg-violet-500/10',
+      iconCl: 'text-violet-500 dark:text-violet-400',
+    },
+    {
+      id: 'ps4',
+      label: 'Overdue Tasks',
+      value: summary.over_due_tasks,
+      icon: Clock,
+      iconBg: 'bg-red-50 dark:bg-red-500/10',
+      iconCl: 'text-red-500 dark:text-red-400',
+    },
+  ];
+
+
   return (
     <section>
       <h2 className="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
@@ -177,8 +221,8 @@ function WorkspacePulse() {
 
 // ─── ACTIVE PROJECTS ─────────────────────────────────────────────────────────
 
-function ActiveProjects() {
-  const topFour = ACTIVE_PROJECTS.slice(0, 4);
+function ActiveProjects({ projects }) {
+  const topFour = projects?.slice(0, 4);
 
   return (
     <section>
@@ -195,9 +239,9 @@ function ActiveProjects() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {topFour.map((project) => (
-          <NavLink to={"/projects/projectId:"}> 
-            <ProjectCard key={project.id} project={project} />
+        {topFour?.map((project) => (
+          <NavLink to={`/projects/${project?.id}`}>
+            <ProjectCard key={project?.id} project={project} />
           </NavLink>
         ))}
       </div>
@@ -206,7 +250,7 @@ function ActiveProjects() {
 }
 
 function ProjectCard({ project }) {
-  const isInProgress = project.status === 'In Progress';
+  const isInProgress = project?.status === 'In Progress';
   const statusCls = isInProgress
     ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400'
     : 'bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400';
@@ -219,14 +263,14 @@ function ProjectCard({ project }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-            {project.name}
+            {project?.name}
           </h3>
           <p className="mt-0.5 text-[12px] text-zinc-400 dark:text-zinc-500">
-            Updated {project.lastActivity}
+            Updated {project?.lastActivity}
           </p>
         </div>
         <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusCls}`}>
-          {project.status}
+          {project?.status}
         </span>
       </div>
 
@@ -234,43 +278,41 @@ function ProjectCard({ project }) {
       <div className="mt-4">
         <div className="flex items-center justify-between text-[11px]">
           <span className="font-medium text-zinc-500 dark:text-zinc-400">Progress</span>
-          <span className="font-semibold text-zinc-700 dark:text-zinc-300">{project.progress}%</span>
+          <span className="font-semibold text-zinc-700 dark:text-zinc-300">{project?.progress}%</span>
         </div>
         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-white/[0.06]">
           <div
             className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
-            style={{ width: `${project.progress}%` }}
+            style={{ width: `${project?.progress}%` }}
           />
         </div>
       </div>
 
       {/* Footer */}
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex -space-x-1.5">
-            {project.avatars.slice(0, 3).map((initials, i) => (
-              <div
-                key={i}
-                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-bold text-white dark:border-[#0B0C10] ${
-                  MEMBER_COLORS[i % MEMBER_COLORS.length]
-                }`}
-              >
-                {initials}
-              </div>
-            ))}
-            {project.avatars.length > 3 && (
-              <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[8px] font-bold text-zinc-600 dark:border-[#0B0C10] dark:bg-white/[0.1] dark:text-zinc-300">
-                +{project.avatars.length - 3}
-              </div>
+      <div className="flex -space-x-1.5">
+        {project?.members?.slice(0, 3).map((member, i) => (
+          <div
+            key={`${member.username}-${i}`}
+            className={`flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-white text-[8px] font-bold text-white dark:border-[#0B0C10] ${MEMBER_COLORS[i % MEMBER_COLORS.length]
+              }`}
+          >
+            {member.avatar ? (
+              <img
+                src={getMediaUrl(member.avatar)}
+                alt={member.username}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              member.initials
             )}
           </div>
-          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{project.members} members</span>
-        </div>
+        ))}
 
-        <span className="flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500">
-          <Calendar size={12} />
-          {new Date(project.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-        </span>
+        {project?.members_count > 3 && (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[8px] font-bold text-zinc-600 dark:border-[#0B0C10] dark:bg-white/[0.1] dark:text-zinc-300">
+            +{project.members_count - 3}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -293,11 +335,10 @@ function RecentActivitySection() {
           return (
             <div
               key={activity.id}
-              className={`flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] ${
-                idx < RECENT_ACTIVITY.length - 1
-                  ? 'border-b border-zinc-100 dark:border-white/[0.04]'
-                  : ''
-              }`}
+              className={`flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.02] ${idx < RECENT_ACTIVITY.length - 1
+                ? 'border-b border-zinc-100 dark:border-white/[0.04]'
+                : ''
+                }`}
             >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${cfg.iconBg} ${cfg.iconCl}`}>
                 <cfg.icon size={15} />

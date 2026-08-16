@@ -25,11 +25,6 @@ const Workspaces = () => {
   }, [fetchWorkspaces]);
 
 
-
-
-
-
-
   // Dummy data for overview cards
   const overviewStats = [
     {

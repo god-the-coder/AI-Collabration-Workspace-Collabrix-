@@ -257,6 +257,56 @@ from django.db.models import Count, Prefetch, Q, Subquery, OuterRef
 
 class WorkspaceService:
 
+
+    @staticmethod
+    def workspace_layout_summary(user, workspace_id):
+
+      workspace = (
+        Workspace.objects
+        .filter(
+            id=workspace_id,
+            members__user=user
+        )
+        .annotate(
+            members_count=Count(
+                "members",
+                distinct=True
+            ),
+
+            projects_count=Count(
+                "projects",
+                filter=Q(
+                    projects__is_archived=False,
+                    projects__is_deleted=False
+                ),
+                distinct=True
+            ),
+
+            tasks_count=Count(
+                "tasks",
+                distinct=True
+            ),
+
+            role=Subquery(
+                WorkspaceMember.objects
+                .filter(
+                    workspace_id=OuterRef("pk"),
+                    user=user
+                )
+                .values("role")[:1]
+            )
+        )
+        .select_related("logo")
+        .first()
+      )
+
+      if workspace is None:
+        raise PermissionDenied(
+            "You don't have access to this workspace."
+        )
+
+      return workspace
+
     @staticmethod
     @transaction.atomic
     def create_workspace(user, validated_data):
