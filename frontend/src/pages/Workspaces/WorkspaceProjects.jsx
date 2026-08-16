@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CreateProjectModal from "../Projects/CreateProjectModal";
-import { NavLink } from "react-router-dom";
+import { NavLink, useParams } from "react-router-dom";
+import { projectWS } from "../../api/workspace.api";
 
 const SHOW_EMPTY_STATE = false;
 // ─── CONFIG ────────────────────────────────────────────────────────────────
@@ -34,40 +35,7 @@ const MEMBER_COLORS = [
 
 // ─── DUMMY DATA ────────────────────────────────────────────────────────────
 
-const SUMMARY_STATS = [
-  {
-    id: "s1",
-    label: "Active Projects",
-    value: 4,
-    iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
-    iconCl: "text-indigo-500 dark:text-indigo-400",
-    icon: <FolderIcon />,
-  },
-  {
-    id: "s2",
-    label: "Completed Projects",
-    value: 2,
-    iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
-    iconCl: "text-emerald-500 dark:text-emerald-400",
-    icon: <CheckIcon />,
-  },
-  {
-    id: "s3",
-    label: "At Risk",
-    value: 1,
-    iconBg: "bg-amber-50 dark:bg-amber-500/10",
-    iconCl: "text-amber-500 dark:text-amber-400",
-    icon: <AlertIcon />,
-  },
-  {
-    id: "s4",
-    label: "Archived Projects",
-    value: 2,
-    iconBg: "bg-zinc-100 dark:bg-white/[0.06]",
-    iconCl: "text-zinc-500 dark:text-zinc-400",
-    icon: <ArchiveIcon />,
-  },
-];
+
 
 const PROJECTS = [
   {
@@ -199,6 +167,64 @@ const PROJECTS = [
 export default function WorkspaceProjects() {
 
   const [showModal, setShowModal] = useState(false);
+  const [summary, setSummary] = useState([]);
+  const [projects, setProjects] = useState([]);
+
+  const { workspaceId } = useParams();
+  useEffect(() => {
+
+    const fetchAPI = async () => {
+      try {
+        const resp = await projectWS(workspaceId);
+        console.log(resp.data);
+        setSummary(resp.data.summary);
+        setProjects(resp.data.projects);
+      }
+      catch (error) {
+        console.log(error);
+      }
+    }
+
+    fetchAPI();
+
+  }, [workspaceId]);
+
+
+
+  const summary_stats = [
+    {
+      id: "s1",
+      label: "Active Projects",
+      value: summary?.active_projects,
+      iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
+      iconCl: "text-indigo-500 dark:text-indigo-400",
+      icon: <FolderIcon />,
+    },
+    {
+      id: "s2",
+      label: "Completed Projects",
+      value: summary?.completed_projects,
+      iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
+      iconCl: "text-emerald-500 dark:text-emerald-400",
+      icon: <CheckIcon />,
+    },
+    {
+      id: "s3",
+      label: "At Risk",
+      value: summary?.at_risk_projects,
+      iconBg: "bg-amber-50 dark:bg-amber-500/10",
+      iconCl: "text-amber-500 dark:text-amber-400",
+      icon: <AlertIcon />,
+    },
+    {
+      id: "s4",
+      label: "Archived Projects",
+      value: summary?.archived_projects,
+      iconBg: "bg-zinc-100 dark:bg-white/[0.06]",
+      iconCl: "text-zinc-500 dark:text-zinc-400",
+      icon: <ArchiveIcon />,
+    },
+  ];
 
 
   return (
@@ -226,15 +252,18 @@ export default function WorkspaceProjects() {
           </span>
         </button>
 
-        { showModal && (
-          <CreateProjectModal onClose={() => setShowModal(false)}/>
+        {showModal && (
+          <CreateProjectModal 
+            onClose={() => setShowModal(false)
+            // onCreated={}
+            } />
         )}
       </div>
 
       {/* Summary cards */}
-      
+
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {SUMMARY_STATS.map((stat) => (
+        {summary_stats.map((stat) => (
           <div
 
             key={stat.id}
@@ -262,11 +291,13 @@ export default function WorkspaceProjects() {
         {SHOW_EMPTY_STATE ? (
           <EmptyState />
         ) : (
-          <NavLink to={"/projects/:projectId"} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {PROJECTS.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {projects.map((project) => (
+              <NavLink to={`/projects/${project.id}`}>
+                <ProjectCard key={project.id} project={project} />
+              </ NavLink>
             ))}
-          </NavLink>
+          </div>
         )}
       </div>
     </div>

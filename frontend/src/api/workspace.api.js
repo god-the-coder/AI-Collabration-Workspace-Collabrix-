@@ -19,3 +19,7 @@ export const overviewWS = (workspaceId) => {
 export const projectWS = (workspaceId) => {
     return api.get(`v1/workspaces/${workspaceId}/projects/`)
 }
+
+export const membersWS = (workspaceId) => {
+    return api.get(`v1/workspaces/${workspaceId}/members/`);
+}

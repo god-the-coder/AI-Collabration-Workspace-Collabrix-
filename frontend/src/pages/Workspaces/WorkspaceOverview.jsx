@@ -30,19 +30,6 @@ const getMediaUrl = (url) => {
   return `${baseUrl}${url}`;
 };
 
-// const getMediaUrl = (url) => {
-//   if (!url) return null;
-
-//   const finalUrl =
-//     `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}${url}`;
-
-//   console.log("Original avatar:", url);
-//   console.log("VITE_API_URL:", import.meta.env.VITE_API_URL);
-//   console.log("Final avatar URL:", finalUrl);
-
-//   return finalUrl;
-// };
-
 
 
 const MEMBER_COLORS = [
