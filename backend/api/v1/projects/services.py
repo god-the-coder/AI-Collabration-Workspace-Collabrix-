@@ -1,4 +1,4 @@
-from apps.projects.models import ProjectMember, Project, ProjectStatus
+from apps.projects.models import ProjectMember, Project, ProjectStatus, ProjectRole
 from django.utils import timezone
 from django.db.models import Count, Prefetch, Q, Subquery, OuterRef
 from apps.workspaces.models import Workspace, WorkspaceRole, WorkspaceMember
@@ -117,6 +117,12 @@ class NewProjectService:
             workspace=workspace,
             start_date=validated_data["start_date"],
             status=validated_data["status"]
+        )
+
+        ProjectMember.objects.create(
+          project=project,
+          user=user,
+          role=ProjectRole.ADMIN,
         )
 
         NotificationService.project_created(

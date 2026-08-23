@@ -115,7 +115,7 @@ export default function CreateProjectModal({
       console.log("Project created:", response.data);
 
       if (onCreated) {
-        onCreated(response.data);
+        await onCreated(response.data);
       }
 
       onClose();

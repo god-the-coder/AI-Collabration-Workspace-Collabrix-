@@ -42,7 +42,7 @@ class NotificationService:
                     workspace=workspace,
                     title="New Project Created",
                     message=f"{actor.username} created '{project.name}'.",
-                    notification_type=NotificationType.PROJECT_CREATED,
+                    notification_type=NotificationType.PROJECT_ADDED,
                     target_type=NotificationTargetType.PROJECT,
                     target_id=project.id,
                 )
