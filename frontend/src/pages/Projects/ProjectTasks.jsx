@@ -1,153 +1,264 @@
-import React from 'react';
-import CreateProjectModal from './CreateProjectModal';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+
 import CreateTaskModal from '../Tasks/CreateTaskModal';
-import TaskDetailsDrawer from '../Tasks/TaskDetailsDrawer';
+import { projectTasks } from '../../api/project.api';
 
-const SHOW_EMPTY_PROJECT_STATE = false;
 
-// ─── CONFIG ────────────────────────────────────────────────────────────────
 
 const PRIORITY_CONFIG = {
-  low:      { label: 'Low',      dot: 'bg-zinc-400 dark:bg-zinc-600', text: 'text-zinc-600   dark:text-zinc-400'   },
-  medium:   { label: 'Medium',   dot: 'bg-indigo-500',                text: 'text-indigo-700  dark:text-indigo-400' },
-  high:     { label: 'High',     dot: 'bg-amber-500',                 text: 'text-amber-700   dark:text-amber-400'  },
-  critical: { label: 'Critical', dot: 'bg-red-500',                   text: 'text-red-700     dark:text-red-400'    },
+  low:      { label: 'Low',      dot: 'bg-zinc-400 dark:bg-zinc-600', text: 'text-zinc-600  dark:text-zinc-400'  },
+  medium:   { label: 'Medium',   dot: 'bg-indigo-500',                text: 'text-indigo-700 dark:text-indigo-400' },
+  high:     { label: 'High',     dot: 'bg-amber-500',                 text: 'text-amber-700  dark:text-amber-400'  },
+  critical: { label: 'Critical', dot: 'bg-red-500',                   text: 'text-red-700    dark:text-red-400'    },
 };
 
-const COLUMNS = [
+// Maps API keys → column display metadata
+// apiKey   = key in response.tasks  (snake_case from Django)
+// summaryKey = key in response.summary
+const COLUMN_CONFIG = [
   {
     id: 'todo',
     title: 'To Do',
     subtitle: 'Tasks waiting to be started.',
-    total: 12,
-    tasks: [
-      {
-        id: 't1', title: 'JWT Refresh Token', priority: 'high',
-        assignee: { name: 'Sarah Chen', initials: 'SC', color: 'bg-indigo-500' },
-        due: 'Jul 18', comments: 3, attachments: 1,
-      },
-      {
-        id: 't2', title: 'Database Migration', priority: 'critical',
-        assignee: { name: 'Raj Verma', initials: 'RV', color: 'bg-orange-500' },
-        due: 'Jul 16',
-      },
-      {
-        id: 't3', title: 'Sprint Planning', priority: 'medium',
-        assignee: { name: 'Priya Sharma', initials: 'PS', color: 'bg-rose-500' },
-        due: 'Jul 20', comments: 5,
-      },
-      {
-        id: 't4', title: 'User Permission Module', priority: 'medium',
-        assignee: { name: 'Arjun Patel', initials: 'AR', color: 'bg-violet-500' },
-        due: 'Jul 22',
-      },
-    ],
+    apiKey: 'todo',
+    summaryKey: 'todo',
   },
   {
     id: 'in-progress',
     title: 'In Progress',
     subtitle: 'Currently being worked on.',
-    total: 5,
-    tasks: [
-      {
-        id: 't5', title: 'Authentication API', priority: 'high',
-        assignee: { name: 'Sarah Chen', initials: 'SC', color: 'bg-indigo-500' },
-        due: 'Today', comments: 8, attachments: 2,
-      },
-      {
-        id: 't6', title: 'Notification Service', priority: 'medium',
-        assignee: { name: 'Jamie Thompson', initials: 'JT', color: 'bg-cyan-500' },
-        due: 'Jul 17',
-      },
-      {
-        id: 't7', title: 'Dashboard Polish', priority: 'low',
-        assignee: { name: 'Elena Rodriguez', initials: 'ER', color: 'bg-emerald-500' },
-        due: 'Jul 19', comments: 2,
-      },
-    ],
+    apiKey: 'in_progress',
+    summaryKey: 'in_progress',
   },
   {
     id: 'in-review',
     title: 'In Review',
     subtitle: 'Waiting for review.',
-    total: 3,
-    tasks: [
-      {
-        id: 't8', title: 'AI Workspace Summary', priority: 'medium',
-        assignee: { name: 'Marcus Johnson', initials: 'MJ', color: 'bg-amber-500' },
-        due: 'Jul 15', comments: 4, attachments: 1,
-      },
-      {
-        id: 't9', title: 'Payment Webhook Handler', priority: 'critical',
-        assignee: { name: 'Raj Verma', initials: 'RV', color: 'bg-orange-500' },
-        due: 'Jul 14', comments: 1,
-      },
-    ],
+    apiKey: 'review',
+    summaryKey: 'review',
   },
   {
     id: 'completed',
     title: 'Completed',
     subtitle: 'Finished tasks.',
-    total: 42,
-    tasks: [
-      {
-        id: 't10', title: 'Onboarding Flow', priority: 'low',
-        assignee: { name: 'Elena Rodriguez', initials: 'ER', color: 'bg-emerald-500' },
-        due: 'Jul 10',
-      },
-      {
-        id: 't11', title: 'Auth Middleware Tests', priority: 'medium',
-        assignee: { name: 'Jamie Thompson', initials: 'JT', color: 'bg-cyan-500' },
-        due: 'Jul 9',
-      },
-      {
-        id: 't12', title: 'Landing Page Copy', priority: 'low',
-        assignee: { name: 'Priya Sharma', initials: 'PS', color: 'bg-rose-500' },
-        due: 'Jul 8',
-      },
-      {
-        id: 't13', title: 'API Rate Limiting', priority: 'high',
-        assignee: { name: 'Arjun Patel', initials: 'AR', color: 'bg-violet-500' },
-        due: 'Jul 6', comments: 6,
-      },
-    ],
+    apiKey: 'completed',
+    summaryKey: 'completed',
   },
 ];
+
+// Deterministic avatar colour from assignee id/name so it stays consistent
+const AVATAR_COLORS = [
+  'bg-indigo-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
+  'bg-rose-500',   'bg-cyan-500',   'bg-orange-500',  'bg-blue-500',
+];
+
+function pickColor(str) {
+  if (!str) return AVATAR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// ─── API TASK → UI TASK NORMALISER ─────────────────────────────────────────
+
+function transformTask(task) {
+  if (!task) return null;
+
+  const firstName = task.assignee?.first_name ?? null;
+  const lastName  = task.assignee?.last_name  ?? null;
+  const assigneeId = task.assignee?.id ?? null;
+
+  const assignee = task.assignee
+    ? {
+        name:     [firstName, lastName].filter(Boolean).join(' ') || null,
+        initials: [firstName?.[0], lastName?.[0]].filter(Boolean).join('') || null,
+        color:    pickColor(String(assigneeId ?? firstName)),
+        avatar:   task.assignee?.avatar ?? null,
+      }
+    : null;
+
+  // Format due_date as "Jul 18" for display; null if absent
+  let due = null;
+  if (task.due_date) {
+    try {
+      due = new Date(task.due_date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      due = null;
+    }
+  }
+
+  return {
+    id:          task.id          ?? null,
+    title:       task.title       ?? null,
+    priority:    task.priority?.toLowerCase() ?? 'medium',
+    assignee,
+    due,
+    comments:    task.comments_count    ?? null,
+    attachments: task.attachments_count ?? null,
+  };
+}
+
+// Build the four columns from the raw API response
+function buildColumns(data) {
+  const summary = data?.summary ?? {};
+  const tasks   = data?.tasks   ?? {};
+
+  return COLUMN_CONFIG.map((col) => ({
+    ...col,
+    total: summary[col.summaryKey] ?? 0,
+    tasks: (tasks[col.apiKey] ?? []).map(transformTask).filter(Boolean),
+  }));
+}
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function ProjectTasks() {
-  if (SHOW_EMPTY_PROJECT_STATE) {
+  const { projectId } = useParams();
+
+  const [columns, setColumns] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+
+  const fetchTasks = useCallback(async () => {
+    if (!projectId) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await projectTasks(projectId);
+
+      setColumns(buildColumns(res.data));
+    } catch (err) {
+      setError(
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        'Failed to load tasks.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  const handleTaskCreated = async () => {
+    setIsCreateTaskOpen(false);
+
+    // Refresh board after successful task creation
+    await fetchTasks();
+  };
+
+  // ── Loading ──────────────────────────────────────────────────────────────
+
+  if (loading) {
     return (
       <div>
-        <Toolbar />
+        <Toolbar
+          onCreateTask={() => setIsCreateTaskOpen(true)}
+        />
+
         <div className="mt-6">
-          <EmptyProjectState />
+          <KanbanSkeleton />
         </div>
+
+        {isCreateTaskOpen && (
+          <CreateTaskModal
+            projectId={projectId}
+            onClose={() => setIsCreateTaskOpen(false)}
+            onTaskCreated={handleTaskCreated}
+          />
+        )}
       </div>
     );
   }
 
+  // ── Error ────────────────────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div>
+        <Toolbar
+          onCreateTask={() => setIsCreateTaskOpen(true)}
+        />
+
+        <div className="mt-6 rounded-2xl border border-red-200/70 bg-red-50/50 px-6 py-10 text-center dark:border-red-500/20 dark:bg-red-500/[0.04]">
+          <p className="text-[14px] font-semibold text-red-700 dark:text-red-400">
+            Could not load tasks
+          </p>
+
+          <p className="mt-1 text-[13px] text-red-600/80 dark:text-red-400/70">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchTasks}
+            className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-indigo-700"
+          >
+            Try Again
+          </button>
+        </div>
+
+        {isCreateTaskOpen && (
+          <CreateTaskModal
+            projectId={projectId}
+            onClose={() => setIsCreateTaskOpen(false)}
+            onTaskCreated={handleTaskCreated}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── Empty project ────────────────────────────────────────────────────────
+
+  const isEmpty =
+    !columns || columns.every(
+      (column) => column.tasks.length === 0
+    );
+
   return (
     <div>
-      <Toolbar />
+      <Toolbar
+        onCreateTask={() => setIsCreateTaskOpen(true)}
+      />
+
       <div className="mt-6">
-        <KanbanBoard />
+        {isEmpty ? (
+          <EmptyProjectState
+            onCreateTask={() => setIsCreateTaskOpen(true)}
+          />
+        ) : (
+          <KanbanBoard columns={columns} />
+        )}
       </div>
+
+      {isCreateTaskOpen && (
+        <CreateTaskModal
+          projectId={projectId}
+          onClose={() => setIsCreateTaskOpen(false)}
+          onTaskCreated={handleTaskCreated}
+        />
+      )}
     </div>
   );
 }
 
 // ─── TOOLBAR ───────────────────────────────────────────────────────────────
 
-function Toolbar() {
-
-  const [showModal, setShowModal] = useState(false);
+function Toolbar({ onCreateTask }) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
-        {/* Search */}
         <div className="relative sm:w-56">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <SearchIcon />
@@ -160,28 +271,23 @@ function Toolbar() {
             className="h-9 w-full rounded-xl border border-zinc-200 bg-zinc-100/60 pl-9 pr-4 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-zinc-100 dark:placeholder:text-zinc-500"
           />
         </div>
-
-        <ToolbarDropdown label="Status" value="All Statuses" />
+        <ToolbarDropdown label="Status"   value="All Statuses"   />
         <ToolbarDropdown label="Priority" value="All Priorities" />
-        <ToolbarDropdown label="Assignee" value="All Members" />
+        <ToolbarDropdown label="Assignee" value="All Members"    />
       </div>
 
-      {/* New Task — will later open CreateTaskModal */}
       <button
-        onClick={() => setShowModal(true)}
         type="button"
+        onClick={onCreateTask}
         className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
       >
         <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+
         <span className="relative flex items-center gap-1.5">
           <PlusIcon />
           New Task
         </span>
       </button>
-
-      {showModal && (
-        <CreateTaskModal onClose={() => setShowModal(false)}/>
-      )}
     </div>
   );
 }
@@ -199,12 +305,12 @@ function ToolbarDropdown({ label, value }) {
   );
 }
 
-// ─── KANBAN BOARD ───────────────────────────────────────────────────────────
+// ─── KANBAN BOARD ──────────────────────────────────────────────────────────
 
-function KanbanBoard() {
+function KanbanBoard({ columns }) {
   return (
     <div className="flex flex-col gap-4 pb-8 sm:flex-row sm:gap-4 sm:overflow-x-auto sm:pb-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
-      {COLUMNS.map((column) => (
+      {columns.map((column) => (
         <KanbanColumn key={column.id} column={column} />
       ))}
     </div>
@@ -212,13 +318,8 @@ function KanbanBoard() {
 }
 
 function KanbanColumn({ column }) {
-
-  const [showTask, setShowTask] = useState(false);
-
-
   return (
     <div className="w-full shrink-0 sm:w-[290px]">
-      {/* Column header */}
       <div className="mb-3 flex items-start justify-between gap-2 px-0.5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -235,33 +336,26 @@ function KanbanColumn({ column }) {
         </div>
       </div>
 
-      {/* Cards */}
       {column.tasks.length === 0 ? (
         <EmptyColumnState />
       ) : (
-        <div  className="flex flex-col gap-2.5 sm:max-h-[calc(100vh-320px)] sm:overflow-y-auto sm:pr-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-col gap-2.5 sm:max-h-[calc(100vh-320px)] sm:overflow-y-auto sm:pr-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
           {column.tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onClick={() => setShowTask(true)}/>
+            <TaskCard key={task.id} task={task} />
           ))}
-
-
-          {showTask && (
-            <TaskDetailsDrawer onClose={() => setShowTask(false)}/>
-          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── TASK CARD ──────────────────────────────────────────────────────────────
+// ─── TASK CARD ─────────────────────────────────────────────────────────────
 
-function TaskCard({ task, onClick }) {
+function TaskCard({ task }) {
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
 
   return (
     <div
-      onClick={onClick}
       tabIndex={0}
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 p-3.5 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300/80 hover:shadow-[0_8px_30px_-12px_rgba(24,24,27,0.1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)] dark:focus-visible:ring-indigo-400/30"
     >
@@ -269,7 +363,7 @@ function TaskCard({ task, onClick }) {
 
       {/* Title */}
       <h3 className="text-[13px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-        {task.title}
+        {task.title ?? 'Untitled Task'}
       </h3>
 
       {/* Priority */}
@@ -280,22 +374,43 @@ function TaskCard({ task, onClick }) {
         </span>
       </div>
 
-      {/* Footer: assignee + due date */}
+      {/* Footer: assignee + due */}
       <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white ${task.assignee.color}`}>
-            {task.assignee.initials}
-          </span>
-          <span className="truncate text-[11.5px] text-zinc-500 dark:text-zinc-400">
-            {task.assignee.name}
-          </span>
+          {task.assignee ? (
+            <>
+              {task.assignee.avatar ? (
+                <img
+                  src={task.assignee.avatar}
+                  alt={task.assignee.name ?? ''}
+                  className="h-5 w-5 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white ${task.assignee.color}`}
+                >
+                  {task.assignee.initials ?? '?'}
+                </span>
+              )}
+              <span className="truncate text-[11.5px] text-zinc-500 dark:text-zinc-400">
+                {task.assignee.name ?? 'Unknown'}
+              </span>
+            </>
+          ) : (
+            <span className="text-[11.5px] text-zinc-400 dark:text-zinc-500">
+              Unassigned
+            </span>
+          )}
         </div>
-        <span className="shrink-0 text-[11px] text-zinc-400 dark:text-zinc-500">
-          {task.due}
-        </span>
+
+        {task.due && (
+          <span className="shrink-0 text-[11px] text-zinc-400 dark:text-zinc-500">
+            {task.due}
+          </span>
+        )}
       </div>
 
-      {/* Comments / attachments — optional indicators */}
+      {/* Comments / attachments */}
       {(task.comments || task.attachments) && (
         <div className="mt-2.5 flex items-center gap-3 border-t border-zinc-100 pt-2.5 dark:border-white/[0.05]">
           {task.comments ? (
@@ -316,7 +431,32 @@ function TaskCard({ task, onClick }) {
   );
 }
 
-// ─── EMPTY COLUMN STATE ─────────────────────────────────────────────────────
+// ─── LOADING SKELETON ──────────────────────────────────────────────────────
+
+function KanbanSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:gap-4">
+      {COLUMN_CONFIG.map((col) => (
+        <div key={col.id} className="w-full shrink-0 sm:w-[290px]">
+          <div className="mb-3 px-0.5">
+            <div className="h-4 w-24 animate-pulse rounded-lg bg-zinc-200 dark:bg-white/[0.08]" />
+            <div className="mt-1.5 h-3 w-36 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/[0.05]" />
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-[104px] animate-pulse rounded-2xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/[0.06] dark:bg-white/[0.04]"
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── EMPTY STATES ──────────────────────────────────────────────────────────
 
 function EmptyColumnState() {
   return (
@@ -327,27 +467,24 @@ function EmptyColumnState() {
   );
 }
 
-// ─── EMPTY PROJECT STATE ────────────────────────────────────────────────────
-
-function EmptyProjectState() {
+function EmptyProjectState({ onCreateTask }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 px-6 py-14 text-center backdrop-blur-sm dark:border-white/[0.06] dark:bg-white/[0.025]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
-
       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400 dark:bg-white/[0.05] dark:text-zinc-500">
         <CheckSquareIcon />
       </div>
-
       <p className="text-[14px] font-semibold text-zinc-700 dark:text-zinc-300">No Tasks Yet</p>
       <p className="mx-auto mt-1 max-w-xs text-[13px] text-zinc-400 dark:text-zinc-500">
         Create your first project task to start collaborating.
       </p>
-
       <button
         type="button"
+        onClick={onCreateTask}
         className="group/btn relative mt-5 inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
       >
         <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+
         <span className="relative flex items-center gap-1.5">
           <PlusIcon />
           Create Task
