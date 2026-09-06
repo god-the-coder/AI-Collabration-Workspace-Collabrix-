@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AddProjectMembersModal from './AddProjectMembersModal';
+import { projectMembers } from '../../api/project.api';
+import { useParams } from 'react-router-dom';
 
 /* ======================================================================
    ProjectMembers.jsx
@@ -17,10 +19,6 @@ import AddProjectMembersModal from './AddProjectMembersModal';
    the browser handles the open/close toggle natively, no JS involved.
 ====================================================================== */
 
-// Flip this during visual QA to preview the empty state. Not wired to any
-// real data source — purely a manual toggle for reviewing both states.
-const SHOW_EMPTY_STATE = false;
-
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 
 const ROLE_CONFIG = {
@@ -30,25 +28,60 @@ const ROLE_CONFIG = {
 
 const ROW_MENU_ITEMS = ['View Profile', 'Change Role'];
 
-// ─── DUMMY DATA ────────────────────────────────────────────────────────────
+// ─── HELPERS ───────────────────────────────────────────────────────────────
 
-const MEMBERS = [
-  { id: 'pm1', name: 'Ninja', username: 'ninja', role: 'admin', joined: 'Joined 6 months ago', assignedTasks: 9, initials: 'NJ', color: 'bg-indigo-500' },
-  { id: 'pm2', name: 'Sarah Chen', username: 'sarah', role: 'admin', joined: 'Joined 4 months ago', assignedTasks: 14, initials: 'SC', color: 'bg-violet-500' },
-  { id: 'pm3', name: 'Arjun Patel', username: 'arjun', role: 'member', joined: 'Joined 3 months ago', assignedTasks: 11, initials: 'AR', color: 'bg-emerald-500' },
-  { id: 'pm4', name: 'Priya Sharma', username: 'priya', role: 'member', joined: 'Joined 2 months ago', assignedTasks: 6, initials: 'PS', color: 'bg-rose-500' },
-  { id: 'pm5', name: 'Marcus Johnson', username: 'marcus', role: 'member', joined: 'Joined 6 weeks ago', assignedTasks: 8, initials: 'MJ', color: 'bg-amber-500' },
-  { id: 'pm6', name: 'Jamie Thompson', username: 'jamie', role: 'member', joined: 'Joined 3 weeks ago', assignedTasks: 4, initials: 'JT', color: 'bg-cyan-500' },
-];
+/** Format an ISO timestamp into a human-readable relative string. */
+function formatJoined(isoString) {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function ProjectMembers() {
+
+  const { projectId } = useParams();
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    projectMembers(projectId)
+      .then((res) => {
+        if (!cancelled) {
+          setMembers(res.data?.members ?? []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err?.response?.data?.detail ?? 'Failed to load members.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [projectId]);
+
   return (
     <div>
       <Toolbar />
       <div className="mt-6 pb-8">
-        {SHOW_EMPTY_STATE ? <EmptyState /> : <MembersGrid />}
+        {loading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : members.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <MembersGrid members={members} />
+        )}
       </div>
     </div>
   );
@@ -115,10 +148,10 @@ function Toolbar() {
 
 // ─── MEMBERS GRID ───────────────────────────────────────────────────────────
 
-function MembersGrid() {
+function MembersGrid({ members }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {MEMBERS.map((member) => (
+      {members.map((member) => (
         <MemberCard key={member.id} member={member} />
       ))}
     </div>
@@ -126,7 +159,12 @@ function MembersGrid() {
 }
 
 function MemberCard({ member }) {
-  const role = ROLE_CONFIG[member.role] || ROLE_CONFIG.member;
+  // API returns role as uppercase (e.g. "ADMIN"); normalise to lowercase for ROLE_CONFIG lookup.
+  const roleKey = (member.role ?? '').toLowerCase();
+  const role = ROLE_CONFIG[roleKey] || ROLE_CONFIG.member;
+
+  // Avatar: use the API-provided image URL when available, fall back to initials.
+  const avatarSrc = member.avatar;
 
   return (
     <div className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 p-5 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300/80 hover:shadow-[0_8px_30px_-12px_rgba(24,24,27,0.1)] dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]">
@@ -134,19 +172,27 @@ function MemberCard({ member }) {
 
       {/* Row menu — top right */}
       <div className="absolute right-3 top-3">
-        <RowMenu memberName={member.name} />
+        <RowMenu memberName={member.username} />
       </div>
 
       {/* Identity */}
       <div className="flex flex-col items-center pt-1 text-center">
-        <div className={`flex h-16 w-16 items-center justify-center rounded-full text-[18px] font-bold text-white ${member.color}`}>
-          {member.initials}
-        </div>
+        {avatarSrc ? (
+          <img
+            src={avatarSrc}
+            alt={member.username}
+            className="h-16 w-16 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-500 text-[18px] font-bold text-white">
+            {member.initials}
+          </div>
+        )}
         <p className="mt-3 text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-          {member.name}
+          {member.handle ?? `@${member.username}`}
         </p>
         <p className="text-[12px] text-zinc-400 dark:text-zinc-500">
-          @{member.username}
+          {member.username}
         </p>
         <span className={`mt-2 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${role.bg} ${role.text}`}>
           {role.label}
@@ -158,13 +204,13 @@ function MemberCard({ member }) {
         <div className="rounded-xl bg-zinc-50/80 p-2.5 text-center dark:bg-white/[0.03]">
           <p className="mb-0.5 text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400">Joined</p>
           <p className="text-[12px] font-semibold leading-tight text-zinc-800 dark:text-zinc-200">
-            {member.joined.replace('Joined ', '')}
+            {formatJoined(member.joined_at)}
           </p>
         </div>
         <div className="rounded-xl bg-zinc-50/80 p-2.5 text-center dark:bg-white/[0.03]">
           <p className="mb-0.5 text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400">Assigned Tasks</p>
           <p className="text-[15px] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">
-            {member.assignedTasks}
+            {member.assigned_tasks ?? 0}
           </p>
         </div>
       </div>
@@ -220,7 +266,27 @@ function RowMenu({ memberName }) {
   );
 }
 
-// ─── EMPTY STATE ───────────────────────────────────────────────────────────
+// ─── LOADING / ERROR / EMPTY STATES ────────────────────────────────────────
+
+function LoadingState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-zinc-400 dark:text-zinc-500">
+      <svg className="mb-3 h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+      </svg>
+      <p className="text-[13px]">Loading members…</p>
+    </div>
+  );
+}
+
+function ErrorState({ message }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-red-500 dark:text-red-400">
+      <p className="text-[13px] font-medium">{message}</p>
+    </div>
+  );
+}
 
 function EmptyState() {
   return (
