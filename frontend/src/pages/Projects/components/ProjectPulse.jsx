@@ -5,42 +5,44 @@ import React from 'react';
    Four compact summary cards — simple counts only, no charts.
 ====================================================================== */
 
-const PULSE_STATS = [
-  {
-    id: 'pp1',
-    label: 'Total Tasks',
-    value: 62,
-    iconBg: 'bg-indigo-50 dark:bg-indigo-500/10',
-    iconCl: 'text-indigo-500 dark:text-indigo-400',
-    icon: <ListIcon />,
-  },
-  {
-    id: 'pp2',
-    label: 'Completed Tasks',
-    value: 42,
-    iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
-    iconCl: 'text-emerald-500 dark:text-emerald-400',
-    icon: <CheckIcon />,
-  },
-  {
-    id: 'pp3',
-    label: 'Overdue Tasks',
-    value: 4,
-    iconBg: 'bg-red-50 dark:bg-red-500/10',
-    iconCl: 'text-red-500 dark:text-red-400',
-    icon: <AlertIcon />,
-  },
-  {
-    id: 'pp4',
-    label: 'Project Members',
-    value: 5,
-    iconBg: 'bg-violet-50 dark:bg-violet-500/10',
-    iconCl: 'text-violet-500 dark:text-violet-400',
-    icon: <UsersIcon />,
-  },
-];
 
-export default function ProjectPulse() {
+
+export default function ProjectPulse({ summary }) {
+  const PULSE_STATS = [
+    {
+      id: "pp1",
+      label: "Total Tasks",
+      value: summary?.total_tasks ?? 0,
+      iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
+      iconCl: "text-indigo-500 dark:text-indigo-400",
+      icon: <ListIcon />,
+    },
+    {
+      id: "pp2",
+      label: "Completed Tasks",
+      value: summary?.completed_tasks ?? 0,
+      iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
+      iconCl: "text-emerald-500 dark:text-emerald-400",
+      icon: <CheckIcon />,
+    },
+    {
+      id: "pp3",
+      label: "Overdue Tasks",
+      value: summary?.overdue_tasks ?? 0,
+      iconBg: "bg-red-50 dark:bg-red-500/10",
+      iconCl: "text-red-500 dark:text-red-400",
+      icon: <AlertIcon />,
+    },
+    {
+      id: "pp4",
+      label: "Project Members",
+      value: summary?.members_count ?? 0,
+      iconBg: "bg-violet-50 dark:bg-violet-500/10",
+      iconCl: "text-violet-500 dark:text-violet-400",
+      icon: <UsersIcon />,
+    },
+  ];
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {PULSE_STATS.map((stat) => (
@@ -49,12 +51,17 @@ export default function ProjectPulse() {
           className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 px-5 py-4 backdrop-blur-sm dark:border-white/[0.06] dark:bg-white/[0.025]"
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${stat.iconBg} ${stat.iconCl}`}>
+
+          <div
+            className={`flex h-9 w-9 items-center justify-center rounded-xl ${stat.iconBg} ${stat.iconCl}`}
+          >
             {stat.icon}
           </div>
+
           <p className="mt-3 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
             {stat.label}
           </p>
+
           <p className="mt-0.5 text-[24px] font-bold leading-none tracking-tight text-zinc-900 dark:text-zinc-50">
             {stat.value}
           </p>

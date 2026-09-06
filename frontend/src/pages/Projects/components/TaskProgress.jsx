@@ -6,16 +6,46 @@ import React from 'react';
    progress rows. No charts, no graphs.
 ====================================================================== */
 
-const STATUS_BREAKDOWN = [
-  { id: 'todo',        label: 'Todo',        count: 12, barCl: 'bg-zinc-400 dark:bg-zinc-600' },
-  { id: 'in-progress', label: 'In Progress', count: 5,  barCl: 'bg-indigo-500' },
-  { id: 'review',      label: 'Review',      count: 3,  barCl: 'bg-violet-500' },
-  { id: 'done',        label: 'Done',        count: 42, barCl: 'bg-emerald-500' },
-];
 
-const TOTAL = STATUS_BREAKDOWN.reduce((sum, s) => sum + s.count, 0);
 
-export default function TaskProgress() {
+
+
+export default function TaskProgress({ progress }) {
+
+  const STATUS_BREAKDOWN = [
+    {
+      id: "todo",
+      label: "Todo",
+      count: progress?.todo?.count ?? 0,
+      percentage: progress?.todo?.percentage ?? 0,
+      barCl: "bg-zinc-400 dark:bg-zinc-600",
+    },
+    {
+      id: "in-progress",
+      label: "In Progress",
+      count: progress?.in_progress?.count ?? 0,
+      percentage: progress?.in_progress?.percentage ?? 0,
+      barCl: "bg-indigo-500",
+    },
+    {
+      id: "review",
+      label: "Review",
+      count: progress?.review?.count ?? 0,
+      percentage: progress?.review?.percentage ?? 0,
+      barCl: "bg-violet-500",
+    },
+    {
+      id: "done",
+      label: "Done",
+      count: progress?.completed?.count ?? 0,
+      percentage: progress?.completed?.percentage ?? 0,
+      barCl: "bg-emerald-500",
+    },
+  ];
+
+  const TOTAL = STATUS_BREAKDOWN.reduce((sum, s) => sum + s.count, 0);
+
+
   return (
     <section>
       <h2 className="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
