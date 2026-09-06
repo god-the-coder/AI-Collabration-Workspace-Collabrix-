@@ -1,7 +1,8 @@
 import CreateProjectModal from "../Projects/CreateProjectModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CreateTaskModal from "./CreateTaskModal";
 import TaskDetailsDrawer from "./TaskDetailsDrawer";
+import { getGlobalTasks } from "../../api/task.api";
 
 const PRIORITY = {
   critical: {
@@ -68,200 +69,372 @@ const WS_BADGE = {
 
 // ─── DUMMY DATA ────────────────────────────────────────────────────────────
 
-const OVERVIEW_STATS = [
-  {
-    id: "s1",
-    label: "Assigned To Me",
-    value: 46,
-    numCls: "text-zinc-900 dark:text-zinc-50",
-    icon: <AssignedIcon />,
-    iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
-    iconCl: "text-indigo-500 dark:text-indigo-400",
-  },
-  {
-    id: "s2",
-    label: "Due Today",
-    value: 8,
-    numCls: "text-amber-600 dark:text-amber-400",
-    icon: <CalendarIcon />,
-    iconBg: "bg-amber-50 dark:bg-amber-500/10",
-    iconCl: "text-amber-500 dark:text-amber-400",
-  },
-  {
-    id: "s3",
-    label: "Overdue",
-    value: 3,
-    numCls: "text-red-600 dark:text-red-400",
-    icon: <AlertIcon />,
-    iconBg: "bg-red-50 dark:bg-red-500/10",
-    iconCl: "text-red-500 dark:text-red-400",
-  },
-  {
-    id: "s4",
-    label: "Completed This Week",
-    value: 27,
-    numCls: "text-emerald-600 dark:text-emerald-400",
-    icon: <CheckIcon />,
-    iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
-    iconCl: "text-emerald-500 dark:text-emerald-400",
-  },
-];
+// const OVERVIEW_STATS = [
+//   {
+//     id: "s1",
+//     label: "Assigned To Me",
+//     value: 46,
+//     numCls: "text-zinc-900 dark:text-zinc-50",
+//     icon: <AssignedIcon />,
+//     iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
+//     iconCl: "text-indigo-500 dark:text-indigo-400",
+//   },
+//   {
+//     id: "s2",
+//     label: "Due Today",
+//     value: 8,
+//     numCls: "text-amber-600 dark:text-amber-400",
+//     icon: <CalendarIcon />,
+//     iconBg: "bg-amber-50 dark:bg-amber-500/10",
+//     iconCl: "text-amber-500 dark:text-amber-400",
+//   },
+//   {
+//     id: "s3",
+//     label: "Overdue",
+//     value: 3,
+//     numCls: "text-red-600 dark:text-red-400",
+//     icon: <AlertIcon />,
+//     iconBg: "bg-red-50 dark:bg-red-500/10",
+//     iconCl: "text-red-500 dark:text-red-400",
+//   },
+//   {
+//     id: "s4",
+//     label: "Completed This Week",
+//     value: 27,
+//     numCls: "text-emerald-600 dark:text-emerald-400",
+//     icon: <CheckIcon />,
+//     iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
+//     iconCl: "text-emerald-500 dark:text-emerald-400",
+//   },
+// ];
 
-const DUE_TODAY_TASKS = [
-  {
-    id: "t1",
-    name: "Authentication API",
-    description: "Implement secure JWT-based authentication endpoints and refresh token flow for the v2 release.",
-    workspace: "Product Engineering",
-    project: "API Gateway Migration",
-    priority: "high",
-    status: "in-review",
-    due: "Today",
-    assignedBy: "Sarah K.",
-    assignedInitials: "SK",
-    assignedColor: "bg-violet-500",
-    updatedAt: "2 hours ago",
-  },
-  {
-    id: "t2",
-    name: "Dashboard UI Polish",
-    description: "Fix responsive layout issues and refine mobile breakpoints across the main dashboard view.",
-    workspace: "Design Studio",
-    project: "User Onboarding Redesign",
-    priority: "high",
-    status: "in-progress",
-    due: "Today",
-    assignedBy: "Arjun R.",
-    assignedInitials: "AR",
-    assignedColor: "bg-emerald-500",
-    updatedAt: "45 min ago",
-  },
-  {
-    id: "t3",
-    name: "Landing Page Copy Review",
-    description: "Review final marketing copy and approve hero section content before dev handoff.",
-    workspace: "Marketing",
-    project: "Q3 Campaign",
-    priority: "medium",
-    status: "to-do",
-    due: "Today",
-    assignedBy: "Priya M.",
-    assignedInitials: "PM",
-    assignedColor: "bg-rose-500",
-    updatedAt: "1 hour ago",
-  },
-];
+// const DUE_TODAY_TASKS = [
+//   {
+//     id: "t1",
+//     name: "Authentication API",
+//     description: "Implement secure JWT-based authentication endpoints and refresh token flow for the v2 release.",
+//     workspace: "Product Engineering",
+//     project: "API Gateway Migration",
+//     priority: "high",
+//     status: "in-review",
+//     due: "Today",
+//     assignedBy: "Sarah K.",
+//     assignedInitials: "SK",
+//     assignedColor: "bg-violet-500",
+//     updatedAt: "2 hours ago",
+//   },
+//   {
+//     id: "t2",
+//     name: "Dashboard UI Polish",
+//     description: "Fix responsive layout issues and refine mobile breakpoints across the main dashboard view.",
+//     workspace: "Design Studio",
+//     project: "User Onboarding Redesign",
+//     priority: "high",
+//     status: "in-progress",
+//     due: "Today",
+//     assignedBy: "Arjun R.",
+//     assignedInitials: "AR",
+//     assignedColor: "bg-emerald-500",
+//     updatedAt: "45 min ago",
+//   },
+//   {
+//     id: "t3",
+//     name: "Landing Page Copy Review",
+//     description: "Review final marketing copy and approve hero section content before dev handoff.",
+//     workspace: "Marketing",
+//     project: "Q3 Campaign",
+//     priority: "medium",
+//     status: "to-do",
+//     due: "Today",
+//     assignedBy: "Priya M.",
+//     assignedInitials: "PM",
+//     assignedColor: "bg-rose-500",
+//     updatedAt: "1 hour ago",
+//   },
+// ];
 
-const OVERDUE_TASKS = [
-  {
-    id: "t4",
-    name: "Payment Gateway Integration",
-    description: "Connect Stripe checkout to the order service and implement webhook event handlers end-to-end.",
-    workspace: "Product Engineering",
-    project: "Collabrix v2.0 Launch",
-    priority: "critical",
-    status: "blocked",
-    due: "2 days ago",
-    assignedBy: "Raj V.",
-    assignedInitials: "RV",
-    assignedColor: "bg-orange-500",
-    updatedAt: "Yesterday",
-  },
-  {
-    id: "t5",
-    name: "Sprint Planning Documentation",
-    description: "Finalize Q3 sprint goals, story point estimates, and team capacity notes for stakeholder review.",
-    workspace: "Product Engineering",
-    project: "Collabrix v2.0 Launch",
-    priority: "high",
-    status: "in-progress",
-    due: "3 days ago",
-    assignedBy: "Sarah K.",
-    assignedInitials: "SK",
-    assignedColor: "bg-violet-500",
-    updatedAt: "3 days ago",
-  },
-  {
-    id: "t6",
-    name: "Marketing Campaign Assets",
-    description: "Deliver final social media graphics and email header templates for the Q3 campaign push.",
-    workspace: "Design Studio",
-    project: "Q3 Campaign",
-    priority: "medium",
-    status: "in-progress",
-    due: "Yesterday",
-    assignedBy: "Priya M.",
-    assignedInitials: "PM",
-    assignedColor: "bg-rose-500",
-    updatedAt: "2 days ago",
-  },
-];
+// const OVERDUE_TASKS = [
+//   {
+//     id: "t4",
+//     name: "Payment Gateway Integration",
+//     description: "Connect Stripe checkout to the order service and implement webhook event handlers end-to-end.",
+//     workspace: "Product Engineering",
+//     project: "Collabrix v2.0 Launch",
+//     priority: "critical",
+//     status: "blocked",
+//     due: "2 days ago",
+//     assignedBy: "Raj V.",
+//     assignedInitials: "RV",
+//     assignedColor: "bg-orange-500",
+//     updatedAt: "Yesterday",
+//   },
+//   {
+//     id: "t5",
+//     name: "Sprint Planning Documentation",
+//     description: "Finalize Q3 sprint goals, story point estimates, and team capacity notes for stakeholder review.",
+//     workspace: "Product Engineering",
+//     project: "Collabrix v2.0 Launch",
+//     priority: "high",
+//     status: "in-progress",
+//     due: "3 days ago",
+//     assignedBy: "Sarah K.",
+//     assignedInitials: "SK",
+//     assignedColor: "bg-violet-500",
+//     updatedAt: "3 days ago",
+//   },
+//   {
+//     id: "t6",
+//     name: "Marketing Campaign Assets",
+//     description: "Deliver final social media graphics and email header templates for the Q3 campaign push.",
+//     workspace: "Design Studio",
+//     project: "Q3 Campaign",
+//     priority: "medium",
+//     status: "in-progress",
+//     due: "Yesterday",
+//     assignedBy: "Priya M.",
+//     assignedInitials: "PM",
+//     assignedColor: "bg-rose-500",
+//     updatedAt: "2 days ago",
+//   },
+// ];
 
-const UPCOMING_TASKS = [
-  {
-    id: "t7",
-    name: "Analytics Dashboard Metrics",
-    description: "Define KPI widget specs including DAU, retention rate, and MRR tiles for the Q3 analytics view.",
-    workspace: "Data Platform",
-    project: "Q3 Analytics Dashboard",
-    priority: "medium",
-    status: "to-do",
-    due: "Tomorrow",
-    assignedBy: "Arjun R.",
-    assignedInitials: "AR",
-    assignedColor: "bg-emerald-500",
-    updatedAt: "5 hours ago",
-  },
-  {
-    id: "t8",
-    name: "API Load Testing",
-    description: "Run k6 performance tests on auth and payments endpoints under simulated peak load conditions.",
-    workspace: "Infrastructure",
-    project: "API Gateway Migration",
-    priority: "high",
-    status: "to-do",
-    due: "In 3 days",
-    assignedBy: "Raj V.",
-    assignedInitials: "RV",
-    assignedColor: "bg-orange-500",
-    updatedAt: "1 day ago",
-  },
-  {
-    id: "t9",
-    name: "Onboarding Copy Review",
-    description: "Proofread and approve all tooltip text, empty state copy, and help labels in the onboarding flow.",
-    workspace: "Design Studio",
-    project: "User Onboarding Redesign",
-    priority: "medium",
-    status: "to-do",
-    due: "In 4 days",
-    assignedBy: "Sarah K.",
-    assignedInitials: "SK",
-    assignedColor: "bg-violet-500",
-    updatedAt: "6 hours ago",
-  },
-  {
-    id: "t10",
-    name: "Team Retrospective Prep",
-    description: "Prepare retrospective agenda, collect anonymous feedback entries, and format action items for the session.",
-    workspace: "Product Engineering",
-    project: "Collabrix v2.0 Launch",
-    priority: "low",
-    status: "to-do",
-    due: "In 5 days",
-    assignedBy: "Priya M.",
-    assignedInitials: "PM",
-    assignedColor: "bg-rose-500",
-    updatedAt: "2 days ago",
-  },
-];
+// const UPCOMING_TASKS = [
+//   {
+//     id: "t7",
+//     name: "Analytics Dashboard Metrics",
+//     description: "Define KPI widget specs including DAU, retention rate, and MRR tiles for the Q3 analytics view.",
+//     workspace: "Data Platform",
+//     project: "Q3 Analytics Dashboard",
+//     priority: "medium",
+//     status: "to-do",
+//     due: "Tomorrow",
+//     assignedBy: "Arjun R.",
+//     assignedInitials: "AR",
+//     assignedColor: "bg-emerald-500",
+//     updatedAt: "5 hours ago",
+//   },
+//   {
+//     id: "t8",
+//     name: "API Load Testing",
+//     description: "Run k6 performance tests on auth and payments endpoints under simulated peak load conditions.",
+//     workspace: "Infrastructure",
+//     project: "API Gateway Migration",
+//     priority: "high",
+//     status: "to-do",
+//     due: "In 3 days",
+//     assignedBy: "Raj V.",
+//     assignedInitials: "RV",
+//     assignedColor: "bg-orange-500",
+//     updatedAt: "1 day ago",
+//   },
+//   {
+//     id: "t9",
+//     name: "Onboarding Copy Review",
+//     description: "Proofread and approve all tooltip text, empty state copy, and help labels in the onboarding flow.",
+//     workspace: "Design Studio",
+//     project: "User Onboarding Redesign",
+//     priority: "medium",
+//     status: "to-do",
+//     due: "In 4 days",
+//     assignedBy: "Sarah K.",
+//     assignedInitials: "SK",
+//     assignedColor: "bg-violet-500",
+//     updatedAt: "6 hours ago",
+//   },
+//   {
+//     id: "t10",
+//     name: "Team Retrospective Prep",
+//     description: "Prepare retrospective agenda, collect anonymous feedback entries, and format action items for the session.",
+//     workspace: "Product Engineering",
+//     project: "Collabrix v2.0 Launch",
+//     priority: "low",
+//     status: "to-do",
+//     due: "In 5 days",
+//     assignedBy: "Priya M.",
+//     assignedInitials: "PM",
+//     assignedColor: "bg-rose-500",
+//     updatedAt: "2 days ago",
+//   },
+// ];
+
+const formatDueDate = (date) => {
+  if (!date) return "No due date";
+
+  const dateObj = new Date(`${date}T00:00:00`);
+
+  return dateObj.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const formatUpdatedAt = (date) => {
+  if (!date) return "Never";
+
+  const dateObj = new Date(date);
+
+  return dateObj.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const mapTaskToUI = (task) => {
+  const priorityMap = {
+    LOW: "low",
+    HIGH: "high",
+    MEDIUM: "medium",
+    CRITICAL: "critical",
+  };
+
+  const statusMap = {
+    TODO: "to-do",
+    IN_PROGRESS: "in-progress",
+    IN_REVIEW: "in-review",
+    COMPLETED: "done",
+    CANCELLED: "cancelled",
+  };
+
+  return {
+    id: task.id,
+    name: task.title,
+    description: task.description || "",
+
+    workspace: task.workspace?.name || "Workspace",
+    project: task.project?.name || "No Project",
+
+    priority: priorityMap[task.priority] || "medium",
+    status: statusMap[task.status] || "to-do",
+
+    due: formatDueDate(task.due_date),
+
+    assignedBy:
+      task.created_by?.first_name ||
+      task.created_by?.username ||
+      "Unknown",
+
+    assignedInitials:
+      task.created_by?.initials || "??",
+
+    assignedColor: "bg-indigo-500",
+
+    updatedAt: formatUpdatedAt(task.updated_at),
+  };
+};
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
 export default function Tasks() {
 
   const [showModal, setShowModal] = useState(false);
-  
+
+  const [taskData, setTaskData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+
+
+
+  useEffect(() => {
+    const fetchGlobalTasks = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await getGlobalTasks();
+
+        console.log("GLOBAL TASKS:", response.data);
+
+        setTaskData(response.data);
+      } catch (err) {
+        console.error("Global tasks fetch error:", err);
+
+        setError(
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to load tasks."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGlobalTasks();
+  }, []);
+
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Loading tasks...
+        </p>
+      </div>
+    );
+  }
+
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <p className="text-sm text-red-500">
+          {error}
+        </p>
+
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+
+  const overview = taskData?.overview;
+
+  const overviewStats = [
+    {
+      id: "s1",
+      label: "Assigned To Me",
+      value: overview?.assigned_to_me ?? 0,
+      numCls: "text-zinc-900 dark:text-zinc-50",
+      icon: <AssignedIcon />,
+      iconBg: "bg-indigo-50 dark:bg-indigo-500/10",
+      iconCl: "text-indigo-500 dark:text-indigo-400",
+    },
+    {
+      id: "s2",
+      label: "Due Today",
+      value: overview?.due_today ?? 0,
+      numCls: "text-amber-600 dark:text-amber-400",
+      icon: <CalendarIcon />,
+      iconBg: "bg-amber-50 dark:bg-amber-500/10",
+      iconCl: "text-amber-500 dark:text-amber-400",
+    },
+    {
+      id: "s3",
+      label: "Overdue",
+      value: overview?.overdue ?? 0,
+      numCls: "text-red-600 dark:text-red-400",
+      icon: <AlertIcon />,
+      iconBg: "bg-red-50 dark:bg-red-500/10",
+      iconCl: "text-red-500 dark:text-red-400",
+    },
+    {
+      id: "s4",
+      label: "Completed This Week",
+      value: overview?.completed_this_week ?? 0,
+      numCls: "text-emerald-600 dark:text-emerald-400",
+      icon: <CheckIcon />,
+      iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
+      iconCl: "text-emerald-500 dark:text-emerald-400",
+    },
+  ];
+
 
 
   return (
@@ -279,7 +452,7 @@ export default function Tasks() {
         </div>
 
         {/* Create Task — identical shimmer-sweep button pattern to Dashboard */}
-        <button
+        {/* <button
           onClick={() => setShowModal(true)}
           type="button"
           className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500"
@@ -289,10 +462,13 @@ export default function Tasks() {
             <PlusIcon />
             Create Task
           </span>
-        </button>
+        </button> */}
 
         {showModal && (
-          <CreateTaskModal onClose={() => setShowModal(false)} />
+          <CreateTaskModal onClose={() => {
+            setShowModal(false)
+          }
+          } />
         )}
 
 
@@ -300,7 +476,7 @@ export default function Tasks() {
 
       {/* ── Overview Stats ────────────────────────────────────────── */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        {OVERVIEW_STATS.map((stat) => (
+        {overviewStats.map((stat) => (
           <OverviewCard key={stat.id} stat={stat} />
         ))}
       </div>
@@ -312,20 +488,22 @@ export default function Tasks() {
         <TaskSection
           emoji="🔥"
           title="Due Today"
-          tasks={DUE_TODAY_TASKS}
+          count={taskData?.due_today?.count ?? 0}
+          tasks={(taskData?.due_today?.tasks || []).map(mapTaskToUI)}
           badgeCls="bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
-        // onClick
         />
         <TaskSection
           emoji="⚠️"
           title="Overdue"
-          tasks={OVERDUE_TASKS}
+          count={taskData?.overdue?.count ?? 0}
+          tasks={(taskData?.overdue?.tasks || []).map(mapTaskToUI)}
           badgeCls="bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
         />
         <TaskSection
           emoji="📅"
           title="Upcoming"
-          tasks={UPCOMING_TASKS}
+          count={taskData?.upcoming?.count ?? 0}
+          tasks={(taskData?.upcoming?.tasks || []).map(mapTaskToUI)}
           badgeCls="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
         />
       </div>
@@ -361,9 +539,12 @@ function OverviewCard({ stat }) {
 
 // ─── TASK SECTION ──────────────────────────────────────────────────────────
 
-function TaskSection({ emoji, title, tasks, badgeCls }) {
-  
+function TaskSection({ emoji, title, count, tasks, badgeCls }) {
+
   const [showTask, setShowTask] = useState(false);
+  const [selectedTaskId, SetSelectedTaskId] = useState(null);
+
+
   return (
     <section>
       {/* Section header */}
@@ -375,7 +556,7 @@ function TaskSection({ emoji, title, tasks, badgeCls }) {
           {title}
         </h2>
         <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${badgeCls}`}>
-          {tasks.length}
+          {count}
         </span>
       </div>
 
@@ -385,13 +566,25 @@ function TaskSection({ emoji, title, tasks, badgeCls }) {
       ) : (
         <div className="flex flex-col gap-3">
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onClick={() => setShowTask(true)}/>
+            <TaskCard key={task.id} task={task}
+              onClick={() => {
+                setShowTask(true)
+                SetSelectedTaskId(task.id)
+              }
+              } />
           ))}
         </div>
       )}
 
       {showTask && (
-        <TaskDetailsDrawer onClose={() => setShowTask(false)}/>
+        <TaskDetailsDrawer
+          onClose={() => {
+            setShowTask(false)
+            SetSelectedTaskId(null)
+          }
+          }
+          taskId={selectedTaskId}
+        />
       )}
     </section>
   );
@@ -407,7 +600,7 @@ function TaskCard({ task, onClick }) {
 
   return (
     <div
-      onClick={onClick} 
+      onClick={onClick}
       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 p-5 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300/80 hover:shadow-[0_8px_30px_-12px_rgba(24,24,27,0.12)] dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.35)]">
 
       {/* Hairline top highlight — matches all other Collabrix cards */}
@@ -514,13 +707,13 @@ function EmptyState() {
         You're all caught up. Enjoy your day.
       </p>
 
-      <button
+      {/* <button
         type="button"
         className="mt-5 inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-300 dark:hover:bg-white/[0.06] dark:hover:text-zinc-100"
       >
         <PlusIcon />
         Create Task
-      </button>
+      </button> */}
     </div>
   );
 }
