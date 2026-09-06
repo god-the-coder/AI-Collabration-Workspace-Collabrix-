@@ -1,108 +1,302 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { getDetailedTask } from '../../api/task.api';
 
 /* ======================================================================
    TaskDetailsDrawer.jsx
 
    A right-side slide-over drawer, NOT a page — the background page stays
-   visible and partially dimmed behind it. Opened from task cards across
-   Global Tasks, Project Tasks, Workspace Recent Tasks, and Notifications.
+   visible and partially dimmed behind it.
 
-   Presentational only — no React state, no event handlers, no drawer
-   open/close logic, no tab-switching logic. The parent that mounts this
-   component decides when it appears.
+   The drawer receives taskId from the parent and fetches the complete
+   task details from the backend.
 
-   Change ACTIVE_TAB below to 'overview' | 'comments' | 'files' to preview
-   each tab body — the same static-constant pattern used for Chats.jsx's
-   selected conversation, not real switching logic. The three tab header
-   buttons are plain divs with a hardcoded highlight, matching the
-   WorkspaceTabs / ProjectTabs convention already used elsewhere in the app.
+   Supported tabs:
+   - Overview
+   - Comments
+   - Files
 
-   Allowed fields only: Title, Description, Status, Priority, Workspace,
-   Project, Assignee, Parent Task, Milestone, Due Date, Created By,
-   Created At, Updated At, Completed At, Comments (author/timestamp),
-   Attached Files. Watchers / Labels / Story Points / Time Tracking /
-   Activity Timeline / AI Summary are all backend-unsupported and
-   intentionally do not appear here.
+   Comments and Files are still static because they are not included in
+   the current detailed task API response.
 ====================================================================== */
 
 const ACTIVE_TAB = 'overview'; // 'overview' | 'comments' | 'files'
 
-// ─── DUMMY DATA ────────────────────────────────────────────────────────────
-
-const TASK = {
-  title: 'Implement Authentication API',
-  priority: 'High',
-  status: 'In Progress',
-  description:
-    'Implement JWT authentication, refresh token rotation and permission middleware for the API. This covers the login endpoint, token refresh flow, and role-based route guards used across the platform.',
-  workspace: 'Product Engineering',
-  project: 'API Gateway',
-  assignee: { name: 'Arjun Sharma', initials: 'AR', color: 'bg-violet-500' },
-  dueDate: '25 Jul 2026',
-  milestone: 'Sprint 2',
-  parentTask: 'Authentication Module',
-  createdBy: { name: 'Sarah Johnson', initials: 'SJ', color: 'bg-indigo-500' },
-  createdAt: 'Jul 10, 2026',
-  updatedAt: '2 hours ago',
-  completedAt: null,
-};
-
-const SUBTASKS = [
-  { id: 's1', label: 'Database Schema', done: true },
-  { id: 's2', label: 'JWT Middleware', done: false },
-  { id: 's3', label: 'Refresh Token Rotation', done: false },
-];
+// ─── DUMMY DATA FOR UNSUPPORTED APIs ────────────────────────────────────────
 
 const COMMENTS = [
   {
-    id: 'c1', author: 'Sarah Johnson', initials: 'SJ', color: 'bg-indigo-500', time: '3 hours ago',
+    id: 'c1',
+    author: 'Sarah Johnson',
+    initials: 'SJ',
+    color: 'bg-indigo-500',
+    time: '3 hours ago',
     content: 'Looks good. Please update the middleware before merging.',
   },
   {
-    id: 'c2', author: 'Marcus Lee', initials: 'ML', color: 'bg-amber-500', time: '2 hours ago',
+    id: 'c2',
+    author: 'Marcus Lee',
+    initials: 'ML',
+    color: 'bg-amber-500',
+    time: '2 hours ago',
     content: 'Refresh token support still needs testing.',
   },
   {
-    id: 'c3', author: 'Arjun Sharma', initials: 'AR', color: 'bg-violet-500', time: '45 minutes ago',
-    content: "On it — I'll add coverage for the rotation flow and push an update this afternoon.",
+    id: 'c3',
+    author: 'Arjun Sharma',
+    initials: 'AR',
+    color: 'bg-violet-500',
+    time: '45 minutes ago',
+    content:
+      "On it — I'll add coverage for the rotation flow and push an update this afternoon.",
   },
 ];
 
 const FILES = [
-  { id: 'f1', name: 'API_Documentation.pdf', type: 'document', size: '2.8 MB', uploader: 'Sarah Johnson', date: '2 days ago' },
-  { id: 'f2', name: 'Dashboard_UI.fig', type: 'other', size: '14.2 MB', uploader: 'Sarah Johnson', date: '3 days ago' },
-  { id: 'f3', name: 'Architecture.png', type: 'image', size: '1.4 MB', uploader: 'Arjun Sharma', date: 'Yesterday' },
-  { id: 'f4', name: 'Release_Notes.docx', type: 'document', size: '340 KB', uploader: 'Marcus Lee', date: 'Today' },
+  {
+    id: 'f1',
+    name: 'API_Documentation.pdf',
+    type: 'document',
+    size: '2.8 MB',
+    uploader: 'Sarah Johnson',
+    date: '2 days ago',
+  },
+  {
+    id: 'f2',
+    name: 'Dashboard_UI.fig',
+    type: 'other',
+    size: '14.2 MB',
+    uploader: 'Sarah Johnson',
+    date: '3 days ago',
+  },
+  {
+    id: 'f3',
+    name: 'Architecture.png',
+    type: 'image',
+    size: '1.4 MB',
+    uploader: 'Arjun Sharma',
+    date: 'Yesterday',
+  },
+  {
+    id: 'f4',
+    name: 'Release_Notes.docx',
+    type: 'document',
+    size: '340 KB',
+    uploader: 'Marcus Lee',
+    date: 'Today',
+  },
 ];
 
 const FILE_TYPE_CONFIG = {
-  document: { bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-500 dark:text-indigo-400', icon: <FileTextIcon /> },
-  image:    { bg: 'bg-violet-50 dark:bg-violet-500/10', text: 'text-violet-500 dark:text-violet-400', icon: <ImageIcon /> },
-  other:    { bg: 'bg-zinc-100  dark:bg-white/[0.06]',  text: 'text-zinc-500   dark:text-zinc-400',   icon: <FileIcon /> },
+  document: {
+    bg: 'bg-indigo-50 dark:bg-indigo-500/10',
+    text: 'text-indigo-500 dark:text-indigo-400',
+    icon: <FileTextIcon />,
+  },
+  image: {
+    bg: 'bg-violet-50 dark:bg-violet-500/10',
+    text: 'text-violet-500 dark:text-violet-400',
+    icon: <ImageIcon />,
+  },
+  other: {
+    bg: 'bg-zinc-100 dark:bg-white/[0.06]',
+    text: 'text-zinc-500 dark:text-zinc-400',
+    icon: <FileIcon />,
+  },
 };
 
 const OVERFLOW_MENU_ITEMS = ['Duplicate Task', 'Copy Task Link'];
 
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+const formatDate = (date) => {
+  if (!date) return 'No date';
+
+  const dateObj = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(dateObj.getTime())) {
+    return 'No date';
+  }
+
+  return dateObj.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const formatDateTime = (date) => {
+  if (!date) return 'Not available';
+
+  const dateObj = new Date(date);
+
+  if (Number.isNaN(dateObj.getTime())) {
+    return 'Not available';
+  }
+
+  return dateObj.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const getUserName = (user) => {
+  if (!user) return 'Unassigned';
+
+  const fullName = [user.first_name, user.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+
+  return fullName || user.username || 'Unknown User';
+};
+
+const getInitials = (user) => {
+  return user?.initials || '??';
+};
+
+const getPriorityLabel = (priority) => {
+  const priorityMap = {
+    LOW: 'Low',
+    MEDIUM: 'Medium',
+    HIGH: 'High',
+    CRITICAL: 'Critical',
+  };
+
+  return priorityMap[priority] || priority || 'Medium';
+};
+
+const getStatusLabel = (status) => {
+  const statusMap = {
+    TODO: 'To Do',
+    IN_PROGRESS: 'In Progress',
+    IN_REVIEW: 'In Review',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+  };
+
+  return statusMap[status] || status || 'To Do';
+};
+
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
-export default function TaskDetailsDrawer({onClose}) {
+export default function TaskDetailsDrawer({ onClose, taskId }) {
+  const [task, setTask] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!taskId) {
+      setTask(null);
+      setIsLoading(false);
+      setError('Task ID is missing.');
+      return;
+    }
+
+    const fetchTask = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        setTask(null);
+
+        const response = await getDetailedTask(taskId);
+
+        console.log('DETAILED TASK:', response.data);
+
+        setTask(response.data);
+      } catch (err) {
+        console.error('DETAILED TASK ERROR:', err);
+
+        setError(
+          err?.response?.data?.detail ||
+          'Failed to load task details.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTask();
+  }, [taskId]);
+
+  // ─── LOADING ──────────────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50">
+        <div
+          onClick={onClose}
+          aria-hidden="true"
+          className="absolute inset-0 bg-zinc-900/20 dark:bg-black/30"
+        />
+
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="absolute right-0 top-0 flex h-full w-full items-center justify-center border-l border-zinc-200/70 bg-white shadow-[-20px_0_50px_-12px_rgba(0,0,0,0.15)] dark:border-white/[0.08] dark:bg-[#111218] dark:shadow-[-24px_0_60px_-12px_rgba(0,0,0,0.6)] sm:w-[80%] md:w-[620px]"
+        >
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">
+            Loading task...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── ERROR ────────────────────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 z-50">
+        <div
+          onClick={onClose}
+          aria-hidden="true"
+          className="absolute inset-0 bg-zinc-900/20 dark:bg-black/30"
+        />
+
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="absolute right-0 top-0 flex h-full w-full flex-col items-center justify-center border-l border-zinc-200/70 bg-white px-6 shadow-[-20px_0_50px_-12px_rgba(0,0,0,0.15)] dark:border-white/[0.08] dark:bg-[#111218] dark:shadow-[-24px_0_60px_-12px_rgba(0,0,0,0.6)] sm:w-[80%] md:w-[620px]"
+        >
+          <p className="text-sm text-red-500 dark:text-red-400">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-4 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.1]"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!task) {
+    return null;
+  }
+
   return (
-    <div 
-      
-      className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50">
       <style>{`
         @keyframes tddOverlayFadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
         }
+
         @keyframes tddDrawerSlideIn {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
       `}</style>
 
-      {/* Overlay — subtle; the board/list behind stays visible */}
-      <div onClick={onClose}
+      {/* Overlay */}
+      <div
+        onClick={onClose}
         aria-hidden="true"
         className="absolute inset-0 bg-zinc-900/20 animate-[tddOverlayFadeIn_200ms_ease-out] dark:bg-black/30"
       />
@@ -115,15 +309,23 @@ export default function TaskDetailsDrawer({onClose}) {
         aria-labelledby="task-drawer-title"
         className="absolute right-0 top-0 flex h-full w-full flex-col border-l border-zinc-200/70 bg-white shadow-[-20px_0_50px_-12px_rgba(0,0,0,0.15)] animate-[tddDrawerSlideIn_280ms_cubic-bezier(0.32,0.72,0,1)] dark:border-white/[0.08] dark:bg-[#111218] dark:shadow-[-24px_0_60px_-12px_rgba(0,0,0,0.6)] sm:w-[80%] md:w-[620px]"
       >
-        <DrawerHeader onClose={onClose}/>
+        <DrawerHeader
+          task={task}
+          onClose={onClose}
+        />
 
         <div className="flex-1 overflow-y-auto">
-          <QuickProperties />
+          <QuickProperties task={task} />
+
           <DrawerTabs />
 
           <div className="px-5 py-5 sm:px-6">
-            {ACTIVE_TAB === 'overview' && <OverviewTabContent />}
+            {ACTIVE_TAB === 'overview' && (
+              <OverviewTabContent task={task} />
+            )}
+
             {ACTIVE_TAB === 'comments' && <CommentsTabContent />}
+
             {ACTIVE_TAB === 'files' && <FilesTabContent />}
           </div>
         </div>
@@ -134,18 +336,20 @@ export default function TaskDetailsDrawer({onClose}) {
   );
 }
 
-// ─── HEADER (sticky) ─────────────────────────────────────────────────────────
+// ─── HEADER ─────────────────────────────────────────────────────────────────
 
-function DrawerHeader({onClose}) {
+function DrawerHeader({ task, onClose }) {
   return (
     <div className="shrink-0 border-b border-zinc-200/70 bg-white/95 px-5 py-4 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#111218]/95 sm:px-6">
       <div className="flex items-start justify-between gap-3">
-        <h1 id="task-drawer-title" className="text-[17px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-          {TASK.title}
+        <h1
+          id="task-drawer-title"
+          className="text-[17px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100"
+        >
+          {task.title}
         </h1>
 
         <div className="flex shrink-0 items-center gap-1">
-          {/* More Actions — native disclosure, no event handlers */}
           <details className="relative">
             <summary
               aria-label="More actions"
@@ -153,8 +357,10 @@ function DrawerHeader({onClose}) {
             >
               <MoreHorizontalIcon />
             </summary>
+
             <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-48 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-[0_8px_30px_-8px_rgba(24,24,27,0.14)] backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#111218]/95 dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.55)]">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.06] to-transparent dark:via-white/[0.1]" />
+
               <div className="py-1.5">
                 {OVERFLOW_MENU_ITEMS.map((label) => (
                   <div
@@ -165,7 +371,9 @@ function DrawerHeader({onClose}) {
                   </div>
                 ))}
               </div>
+
               <div className="h-px bg-zinc-100 dark:bg-white/[0.05]" />
+
               <div className="py-1.5">
                 <div className="flex items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400">
                   Delete Task
@@ -187,52 +395,98 @@ function DrawerHeader({onClose}) {
 
       <div className="mt-2.5 flex items-center gap-1.5">
         <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-          {TASK.priority} Priority
+          {getPriorityLabel(task.priority)} Priority
         </span>
+
         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">
-          {TASK.status}
+          {getStatusLabel(task.status)}
         </span>
       </div>
     </div>
   );
 }
 
-// ─── QUICK PROPERTIES (Notion-style rows) ──────────────────────────────────
+// ─── QUICK PROPERTIES ──────────────────────────────────────────────────────
 
-function QuickProperties() {
+function QuickProperties({ task }) {
   return (
     <div className="border-b border-zinc-100 px-3 py-3 dark:border-white/[0.05] sm:px-4">
-      <PropertyRow icon={<BuildingIcon />} label="Workspace">
-        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">{TASK.workspace}</span>
-      </PropertyRow>
-      <PropertyRow icon={<FolderIcon />} label="Project">
-        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">{TASK.project}</span>
-      </PropertyRow>
-      <PropertyRow icon={<UserIcon />} label="Assignee">
-        <span className="flex items-center gap-1.5">
-          <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-bold text-white ${TASK.assignee.color}`}>
-            {TASK.assignee.initials}
-          </span>
-          <span className="text-[13px] text-zinc-700 dark:text-zinc-300">{TASK.assignee.name}</span>
+      <PropertyRow
+        icon={<BuildingIcon />}
+        label="Workspace"
+      >
+        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
+          {task.workspace?.name || 'No Workspace'}
         </span>
       </PropertyRow>
-      <PropertyRow icon={<CalendarIcon />} label="Due Date">
-        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">{TASK.dueDate}</span>
+
+      <PropertyRow
+        icon={<FolderIcon />}
+        label="Project"
+      >
+        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
+          {task.project?.name || 'No Project'}
+        </span>
       </PropertyRow>
-      <PropertyRow icon={<FlagIcon />} label="Milestone">
-        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">{TASK.milestone}</span>
+
+      <PropertyRow
+        icon={<UserIcon />}
+        label="Assignee"
+      >
+        <span className="flex items-center gap-1.5">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-[8px] font-bold text-white">
+            {getInitials(task.assignee)}
+          </span>
+
+          <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
+            {getUserName(task.assignee)}
+          </span>
+        </span>
       </PropertyRow>
-      <PropertyRow icon={<LinkIcon />} label="Parent Task">
-        <a href="#" className="text-[13px] font-medium text-zinc-600 transition-colors hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400">
-          {TASK.parentTask}
+
+      <PropertyRow
+        icon={<CalendarIcon />}
+        label="Due Date"
+      >
+        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
+          {formatDate(task.due_date)}
+        </span>
+      </PropertyRow>
+
+      <PropertyRow
+        icon={<FlagIcon />}
+        label="Milestone"
+      >
+        <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
+          {task.milestone?.name || 'No Milestone'}
+        </span>
+      </PropertyRow>
+
+      <PropertyRow
+        icon={<LinkIcon />}
+        label="Parent Task"
+      >
+        <a
+          href="#"
+          className="text-[13px] font-medium text-zinc-600 transition-colors hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
+        >
+          {task.parent_task?.title || 'No Parent Task'}
         </a>
       </PropertyRow>
-      <PropertyRow icon={<UserIcon />} label="Created By" isLast>
+
+      <PropertyRow
+        icon={<UserIcon />}
+        label="Created By"
+        isLast
+      >
         <span className="flex items-center gap-1.5">
-          <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-bold text-white ${TASK.createdBy.color}`}>
-            {TASK.createdBy.initials}
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white">
+            {getInitials(task.created_by)}
           </span>
-          <span className="text-[13px] text-zinc-700 dark:text-zinc-300">{TASK.createdBy.name}</span>
+
+          <span className="text-[13px] text-zinc-700 dark:text-zinc-300">
+            {getUserName(task.created_by)}
+          </span>
         </span>
       </PropertyRow>
     </div>
@@ -243,10 +497,16 @@ function PropertyRow({ icon, label, children }) {
   return (
     <div className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.03]">
       <span className="flex w-[110px] shrink-0 items-center gap-2 text-[12.5px] text-zinc-400 dark:text-zinc-500">
-        <span className="text-zinc-400 dark:text-zinc-500">{icon}</span>
+        <span className="text-zinc-400 dark:text-zinc-500">
+          {icon}
+        </span>
+
         {label}
       </span>
-      <span className="min-w-0 flex-1">{children}</span>
+
+      <span className="min-w-0 flex-1">
+        {children}
+      </span>
     </div>
   );
 }
@@ -282,7 +542,15 @@ function DrawerTabs() {
 
 // ─── OVERVIEW TAB ───────────────────────────────────────────────────────────
 
-function OverviewTabContent() {
+function OverviewTabContent({ task }) {
+  const subtasks = task.subtasks || [];
+
+  const completedSubtasks = subtasks.filter(
+    (subtask) => subtask.is_completed
+  ).length;
+
+  const totalSubtasks = subtasks.length;
+
   return (
     <div className="space-y-6">
       {/* Description */}
@@ -290,34 +558,58 @@ function OverviewTabContent() {
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           Description
         </p>
+
         <div className="rounded-xl bg-zinc-50/70 p-4 dark:bg-white/[0.02]">
           <p className="text-[13.5px] leading-relaxed text-zinc-700 dark:text-zinc-300">
-            {TASK.description}
+            {task.description || 'No description provided.'}
           </p>
         </div>
       </div>
 
       {/* Subtasks */}
       <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-          Subtasks
-        </p>
-        <div className="space-y-1.5">
-          {SUBTASKS.map((sub) => (
-            <div key={sub.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.03]">
-              {sub.done ? (
-                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
-                  <CheckIcon />
-                </span>
-              ) : (
-                <span className="h-4.5 w-4.5 shrink-0 rounded-full border-2 border-zinc-300 dark:border-white/20" />
-              )}
-              <span className={`text-[13px] ${sub.done ? 'text-zinc-400 line-through dark:text-zinc-500' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                {sub.label}
-              </span>
-            </div>
-          ))}
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+            Subtasks
+          </p>
+
+          <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+            {completedSubtasks}/{totalSubtasks}
+          </span>
         </div>
+
+        {subtasks.length === 0 ? (
+          <div className="rounded-xl bg-zinc-50/70 p-4 text-[13px] text-zinc-400 dark:bg-white/[0.02] dark:text-zinc-500">
+            No subtasks.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {subtasks.map((sub) => (
+              <div
+                key={sub.id}
+                className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.03]"
+              >
+                {sub.is_completed ? (
+                  <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+                    <CheckIcon />
+                  </span>
+                ) : (
+                  <span className="h-4.5 w-4.5 shrink-0 rounded-full border-2 border-zinc-300 dark:border-white/20" />
+                )}
+
+                <span
+                  className={`text-[13px] ${
+                    sub.is_completed
+                      ? 'text-zinc-400 line-through dark:text-zinc-500'
+                      : 'text-zinc-700 dark:text-zinc-300'
+                  }`}
+                >
+                  {sub.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Metadata */}
@@ -325,10 +617,29 @@ function OverviewTabContent() {
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           Metadata
         </p>
+
         <div className="overflow-hidden rounded-xl border border-zinc-200/60 dark:border-white/[0.05]">
-          <MetaRow label="Created" value={`${TASK.createdAt} by ${TASK.createdBy.name}`} />
-          <MetaRow label="Updated" value={TASK.updatedAt} />
-          <MetaRow label="Completed" value={TASK.completedAt || 'Not yet completed'} isLast />
+          <MetaRow
+            label="Created"
+            value={`${formatDateTime(
+              task.metadata?.created_at
+            )} by ${getUserName(task.created_by)}`}
+          />
+
+          <MetaRow
+            label="Updated"
+            value={formatDateTime(task.metadata?.updated_at)}
+          />
+
+          <MetaRow
+            label="Completed"
+            value={
+              task.metadata?.completed_at
+                ? formatDateTime(task.metadata.completed_at)
+                : 'Not yet completed'
+            }
+            isLast
+          />
         </div>
       </div>
     </div>
@@ -337,9 +648,20 @@ function OverviewTabContent() {
 
 function MetaRow({ label, value, isLast }) {
   return (
-    <div className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${isLast ? '' : 'border-b border-zinc-100 dark:border-white/[0.05]'}`}>
-      <span className="text-[12px] text-zinc-400 dark:text-zinc-500">{label}</span>
-      <span className="text-[12.5px] text-zinc-600 dark:text-zinc-400">{value}</span>
+    <div
+      className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${
+        isLast
+          ? ''
+          : 'border-b border-zinc-100 dark:border-white/[0.05]'
+      }`}
+    >
+      <span className="text-[12px] text-zinc-400 dark:text-zinc-500">
+        {label}
+      </span>
+
+      <span className="text-[12.5px] text-zinc-600 dark:text-zinc-400">
+        {value}
+      </span>
     </div>
   );
 }
@@ -351,14 +673,23 @@ function CommentsTabContent() {
     <div className="space-y-5">
       {COMMENTS.map((comment) => (
         <div key={comment.id} className="flex items-start gap-3">
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${comment.color}`}>
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${comment.color}`}
+          >
             {comment.initials}
           </span>
+
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">{comment.author}</span>
-              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{comment.time}</span>
+              <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200">
+                {comment.author}
+              </span>
+
+              <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                {comment.time}
+              </span>
             </div>
+
             <p className="mt-0.5 text-[13.5px] leading-relaxed text-zinc-700 dark:text-zinc-300">
               {comment.content}
             </p>
@@ -414,21 +745,30 @@ function FilesTabContent() {
   return (
     <div className="space-y-2.5">
       {FILES.map((file) => {
-        const type = FILE_TYPE_CONFIG[file.type] || FILE_TYPE_CONFIG.other;
+        const type =
+          FILE_TYPE_CONFIG[file.type] || FILE_TYPE_CONFIG.other;
+
         return (
           <div
             key={file.id}
             className="flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-white/70 p-3 backdrop-blur-sm transition-colors hover:border-zinc-300/80 hover:bg-zinc-50/60 dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] dark:hover:bg-white/[0.035]"
           >
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${type.bg} ${type.text}`}>
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${type.bg} ${type.text}`}
+            >
               {type.icon}
             </span>
+
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{file.name}</p>
+              <p className="truncate text-[13px] font-medium text-zinc-900 dark:text-zinc-100">
+                {file.name}
+              </p>
+
               <p className="mt-0.5 truncate text-[11.5px] text-zinc-400 dark:text-zinc-500">
                 {file.size} &middot; {file.uploader} &middot; {file.date}
               </p>
             </div>
+
             <div className="flex shrink-0 items-center gap-0.5">
               <button
                 type="button"
@@ -437,6 +777,7 @@ function FilesTabContent() {
               >
                 <EyeIcon />
               </button>
+
               <button
                 type="button"
                 aria-label={`Download ${file.name}`}
@@ -444,6 +785,7 @@ function FilesTabContent() {
               >
                 <DownloadIcon />
               </button>
+
               <details className="relative">
                 <summary
                   aria-label={`More actions for ${file.name}`}
@@ -451,17 +793,22 @@ function FilesTabContent() {
                 >
                   <MoreVerticalIcon />
                 </summary>
+
                 <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-40 overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-[0_8px_30px_-8px_rgba(24,24,27,0.14)] backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#111218]/95 dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.55)]">
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.06] to-transparent dark:via-white/[0.1]" />
+
                   <div className="py-1.5">
                     <div className="flex items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50/80 dark:text-zinc-300 dark:hover:bg-white/[0.04]">
                       Rename
                     </div>
+
                     <div className="flex items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50/80 dark:text-zinc-300 dark:hover:bg-white/[0.04]">
                       Copy Link
                     </div>
                   </div>
+
                   <div className="h-px bg-zinc-100 dark:bg-white/[0.05]" />
+
                   <div className="py-1.5">
                     <div className="flex items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400">
                       Delete
