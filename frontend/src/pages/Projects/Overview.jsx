@@ -1,29 +1,83 @@
-import React from 'react';
 
-import QuickActions from './components/QuickActions';
-import ProjectPulse from './components/ProjectPulse';
-import TaskProgress from './components/TaskProgress';
-import RecentActivity from './components/RecentActivity';
-import AIProjectSummary from './components/AIProjectSummary';
 
-/* ======================================================================
-   pages/Projects/Overview.jsx
-   Rendered inside <DashboardLayout><ProjectLayout> as the "Overview" tab.
-   ProjectLayout already renders the Project Header (name, workspace,
-   status, priority, progress) and Project Tabs — do NOT recreate or
-   import them. This file composes only the Overview tab's content.
+import React, { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 
-   Purpose: "How is this project progressing?" — nothing else.
-   UI only — no routing, no API calls, no business logic.
-====================================================================== */
+import ProjectPulse from "./components/ProjectPulse";
+import TaskProgress from "./components/TaskProgress";
+import RecentActivity from "./components/RecentActivity";
+import AIProjectSummary from "./components/AIProjectSummary";
+
+import { projectOverview } from "../../api/project.api";
+
+
+
 
 export default function Overview() {
+  const { project } = useOutletContext();
+
+  const [overviewData, setOverviewData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchProjectOverview = async () => {
+      if (!project?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await projectOverview(project.id);
+
+        console.log("PROJECT OVERVIEW:", response.data);
+
+        setOverviewData(response.data);
+      } catch (err) {
+        console.error("Project overview fetch error:", err);
+
+        setError(
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to load project overview."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjectOverview();
+  }, [project?.id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-8">
+        Loading project overview...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-8">
+        <p className="text-sm text-red-500">
+          {error}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-8">
-      {/* <QuickActions /> */}
-      <ProjectPulse />
-      <TaskProgress />
+      <ProjectPulse summary={overviewData?.summary} />
+
+      <TaskProgress progress={overviewData?.task_progress} />
+
       <RecentActivity />
+
       <AIProjectSummary />
     </div>
   );
