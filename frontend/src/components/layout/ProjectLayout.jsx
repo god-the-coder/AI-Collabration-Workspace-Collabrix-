@@ -1,39 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useParams } from 'react-router-dom';
 import CreateTaskModal from '../../pages/Tasks/CreateTaskModal';
 import AddProjectMembersModal from '../../pages/Projects/AddProjectMembersModal';
+import { detailedProject } from '../../api/project.api';
 
-
-const PROJECT = {
-  name: 'API Gateway Migration',
-  description: 'Authentication & Infrastructure improvements.',
-  workspace: 'Product Engineering',
-  members: 8,
-  tasks: 62,
-  progress: 68,
-  status: 'active',
-  priority: 'high',
-  avatar: 'AG',
-};
+// const PROJECT = {
+//   name: 'API Gateway Migration',
+//   description: 'Authentication & Infrastructure improvements.',
+//   workspace: 'Product Engineering',
+//   members: 8,
+//   tasks: 62,
+//   progress: 68,
+//   status: 'active',
+//   priority: 'high',
+//   avatar: 'AG',
+// };
 
 const STATUS_CONFIG = {
-  planning:  { label: 'Planning',  bg: 'bg-zinc-100  dark:bg-white/[0.06]',  text: 'text-zinc-600  dark:text-zinc-400'  },
-  active:    { label: 'Active',    bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400' },
+  planning: { label: 'Planning', bg: 'bg-zinc-100  dark:bg-white/[0.06]', text: 'text-zinc-600  dark:text-zinc-400' },
+  active: { label: 'Active', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400' },
   completed: { label: 'Completed', bg: 'bg-indigo-50  dark:bg-indigo-500/10', text: 'text-indigo-700  dark:text-indigo-400' },
 };
 
 const PRIORITY_CONFIG = {
-  low:      { label: 'Low',      bg: 'bg-zinc-100  dark:bg-white/[0.06]',  text: 'text-zinc-600  dark:text-zinc-400'  },
-  medium:   { label: 'Medium',   bg: 'bg-indigo-50  dark:bg-indigo-500/10', text: 'text-indigo-700  dark:text-indigo-400' },
-  high:     { label: 'High',     bg: 'bg-amber-50   dark:bg-amber-500/10',  text: 'text-amber-700   dark:text-amber-400'  },
-  critical: { label: 'Critical', bg: 'bg-red-50     dark:bg-red-500/10',    text: 'text-red-700     dark:text-red-400'    },
+  low: { label: 'Low', bg: 'bg-zinc-100  dark:bg-white/[0.06]', text: 'text-zinc-600  dark:text-zinc-400' },
+  medium: { label: 'Medium', bg: 'bg-indigo-50  dark:bg-indigo-500/10', text: 'text-indigo-700  dark:text-indigo-400' },
+  high: { label: 'High', bg: 'bg-amber-50   dark:bg-amber-500/10', text: 'text-amber-700   dark:text-amber-400' },
+  critical: { label: 'Critical', bg: 'bg-red-50     dark:bg-red-500/10', text: 'text-red-700     dark:text-red-400' },
 };
 
 const PROJECT_TABS = [
-  { id: 'overview', label: 'Overview', path:""},
-  { id: 'tasks',    label: 'Tasks',    path:"tasks" },
-  { id: 'members',  label: 'Members',  path:"members" },
-  { id: 'chat',     label: 'Chat',     path:"chats" },
+  { id: 'overview', label: 'Overview', path: "" },
+  { id: 'tasks', label: 'Tasks', path: "tasks" },
+  { id: 'members', label: 'Members', path: "members" },
+  { id: 'chat', label: 'Chat', path: "chats" },
 ];
 
 const OVERFLOW_MENU_ITEMS = ['Edit Project', 'Archive Project', 'Project Settings'];
@@ -41,13 +41,69 @@ const OVERFLOW_MENU_ITEMS = ['Edit Project', 'Archive Project', 'Project Setting
 // ─── MAIN LAYOUT ────────────────────────────────────────────────────────────
 
 export default function ProjectLayout() {
+  const { projectId } = useParams();
+
+  const [project, setProject] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!projectId) return;
+
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await detailedProject(projectId);
+
+        console.log("DETAILED PROJECT:", response.data);
+
+        setProject(response.data);
+      } catch (err) {
+        console.error("Detailed project fetch error:", err);
+
+        setError(
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to load project."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [projectId]);
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[1200px] px-6 py-6 lg:px-8">
+        Loading project...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-[1200px] px-6 py-6 lg:px-8">
+        {error}
+      </div>
+    );
+  }
+
+  if (!project) {
+    return null;
+  }
+
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-6 lg:px-8">
-      <ProjectHeader />
+      <ProjectHeader project={project} />
+
       <ProjectTabs />
 
       <div className="mt-8 pb-10">
-        <Outlet />
+        <Outlet context={{ project }} />
       </div>
     </div>
   );
@@ -55,9 +111,9 @@ export default function ProjectLayout() {
 
 // ─── PROJECT HEADER ─────────────────────────────────────────────────────────
 
-function ProjectHeader() {
-  const status = STATUS_CONFIG[PROJECT.status] || STATUS_CONFIG.planning;
-  const priority = PRIORITY_CONFIG[PROJECT.priority] || PRIORITY_CONFIG.medium;
+function ProjectHeader({project}) {
+  const status = STATUS_CONFIG[project.status] || STATUS_CONFIG.planning;
+  const priority = PRIORITY_CONFIG[project.priority] || PRIORITY_CONFIG.medium;
   const [showModal, setShowModal] = useState(false);
   // const [showMemberModal, setShowMemberModal] = useState(false);
 
@@ -66,12 +122,12 @@ function ProjectHeader() {
       {/* Identity */}
       <div className="flex items-start gap-4">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-[18px] font-bold text-white sm:h-16 sm:w-16 sm:text-[20px]">
-          {PROJECT.avatar}
+          {project.avatar}
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-[24px]">
-              {PROJECT.name}
+              {project.name}
             </h1>
             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${status.bg} ${status.text}`}>
               {status.label}
@@ -81,17 +137,17 @@ function ProjectHeader() {
             </span>
           </div>
           <p className="mt-1 text-[13.5px] text-zinc-500 dark:text-zinc-400">
-            {PROJECT.description}
+            {project.description}
           </p>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12.5px] text-zinc-500 dark:text-zinc-400">
-            <span>{PROJECT.workspace}</span>
+            <span>{project.workspace}</span>
             <span className="text-zinc-300 dark:text-zinc-600">&middot;</span>
-            <span>{PROJECT.members} Members</span>
+            <span>{project.members} Members</span>
             <span className="text-zinc-300 dark:text-zinc-600">&middot;</span>
-            <span>{PROJECT.tasks} Tasks</span>
-            <span className="text-zinc-300 dark:text-zinc-600">&middot;</span>
-            <span>{PROJECT.progress}% Complete</span>
+            <span>{project.tasks} Tasks</span>
+            {/* <span className="text-zinc-300 dark:text-zinc-600">&middot;</span> */}
+            {/* <span>{project.progress}% Complete</span> */}
           </div>
         </div>
       </div>
@@ -134,7 +190,7 @@ function ProjectHeader() {
         <OverflowMenu />
       </div>
 
-       {/* {showModal && (
+      {/* {showModal && (
 
         <CreateTaskModal onClose={() => setShowModal(false)}/>
        )} */}
@@ -177,11 +233,10 @@ function OverflowMenu() {
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-label="Project options"
-        className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
-          isOpen
+        className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${isOpen
             ? 'border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-white/[0.14] dark:bg-white/[0.08] dark:text-zinc-200'
             : 'border-zinc-200/70 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:bg-white/[0.05] dark:hover:text-zinc-200'
-        }`}
+          }`}
       >
         <MoreHorizontalIcon />
       </button>
@@ -189,11 +244,10 @@ function OverflowMenu() {
       <div
         role="menu"
         aria-label="Project options"
-        className={`absolute right-0 top-[calc(100%+8px)] z-30 w-52 origin-top-right overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-[0_8px_30px_-8px_rgba(24,24,27,0.14)] backdrop-blur-xl transition-all duration-150 ease-out dark:border-white/[0.06] dark:bg-[#111218]/95 dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.55)] ${
-          isOpen
+        className={`absolute right-0 top-[calc(100%+8px)] z-30 w-52 origin-top-right overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-[0_8px_30px_-8px_rgba(24,24,27,0.14)] backdrop-blur-xl transition-all duration-150 ease-out dark:border-white/[0.06] dark:bg-[#111218]/95 dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.55)] ${isOpen
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none -translate-y-1 scale-[0.98] opacity-0'
-        }`}
+          }`}
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.06] to-transparent dark:via-white/[0.1]" />
 
@@ -227,11 +281,10 @@ function ProjectTabs() {
             to={tab.path}
             end={" "}
             key={tab.id}
-            className={({isActive}) => `shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-1 pb-3 text-[13.5px] font-medium transition-colors ${
-              isActive
+            className={({ isActive }) => `shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-1 pb-3 text-[13.5px] font-medium transition-colors ${isActive
                 ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
                 : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-            }`}
+              }`}
           >
             {tab.label}
           </NavLink>
