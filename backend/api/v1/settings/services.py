@@ -30,9 +30,10 @@ class SettingServices:
     
     @staticmethod
     def get_appearance_and_notifications(user):
-        return UserSettingsModel.objects.get(
+        settings, _ = UserSettingsModel.objects.get_or_create(
             user=user
         )
+        return settings
     
     @staticmethod
     def get_security(user):
@@ -77,6 +78,12 @@ class SettingPatchServices:
         avatar_file = validated_data.pop("avatar", None)
 
         if avatar_file:
+            extension = (
+                avatar_file.name.rsplit(".", 1)[-1]
+                if "." in avatar_file.name
+                else ""
+            )
+
             file = File.objects.create(
                 workspace=None,
                 uploaded_by=user,
@@ -84,13 +91,15 @@ class SettingPatchServices:
                 file=avatar_file,
                 mime_type=avatar_file.content_type,
                 file_type=FileType.IMAGE,
-                extention=avatar_file.name.split(".")[-1],
+                extension=extension,
                 file_size=avatar_file.size
             )
 
             user.avatar = file
 
-        
+        if "email" in validated_data and validated_data["email"] != user.email:
+            user.is_email_verified = False
+
         for field, value, in validated_data.items():
             setattr(user, field, value)
 
@@ -103,22 +112,20 @@ class SettingPatchServices:
 
         user = request.user
 
-        UserSettingsModel.objects.filter(
-            user=user
-        ).update(
-            theme=validated_data["theme"]
-        )
-
-
-        return UserSettingsModel.objects.get(
+        settings, _ = UserSettingsModel.objects.get_or_create(
             user=user
         )
+
+        settings.theme = validated_data["theme"]
+        settings.save(update_fields=["theme"])
+
+        return settings
 
 
     @staticmethod
     def patch_notification(user, validated_data):
 
-        settings = UserSettingsModel.objects.get(
+        settings, _ = UserSettingsModel.objects.get_or_create(
             user=user
         )
 
@@ -165,15 +172,29 @@ class SettingPatchServices:
 
     
     @staticmethod
-    @transaction.atomic
-    def revoke_all_sessions(user):
+    def revoke_all_sessions(user, exclude_session_id=None):
 
-        SessionsModel.objects.filter(
+        sessions = SessionsModel.objects.filter(
             user=user,
             revoked_at__isnull=True
-        ).update(
+        )
+
+        if exclude_session_id:
+            sessions = sessions.exclude(id=exclude_session_id)
+
+        sessions_to_revoke = list(sessions)
+
+        sessions.update(
             revoked_at=timezone.now()
         )
+
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        for session in sessions_to_revoke:
+            try:
+                RefreshToken(session.refresh_token).blacklist()
+            except Exception:
+                pass
 
 
     @staticmethod

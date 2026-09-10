@@ -1,5 +1,14 @@
 from django.urls import path
-from .views import SettingsAPIView, SettingsProfileAPIView, SettingsAppearanceAPIView, SettingsNotificationAPIView, SettingsPasswordAPIView, SettingsDeleteAPIView, SettingsRevokeAllAPIView
+from .views import (
+    SettingsAPIView,
+    SettingsProfileAPIView,
+    SettingsAppearanceAPIView,
+    SettingsNotificationAPIView,
+    SettingsPasswordAPIView,
+    SettingsDeleteAPIView,
+    SettingsRevokeAllAPIView,
+    SettingsRevokeAPIView,
+)
 
 urlpatterns = [
     path(
@@ -29,7 +38,7 @@ urlpatterns = [
 
     path(
         "delete/",
-        SettingsDeleteAPIView.as_view()        
+        SettingsDeleteAPIView.as_view()
     ),
 
     path(
@@ -37,5 +46,10 @@ urlpatterns = [
         SettingsRevokeAllAPIView.as_view()
     ),
 
-    
+    path(
+        "sessions/<uuid:session_id>/revoke/",
+        SettingsRevokeAPIView.as_view()
+    ),
+
+
 ]

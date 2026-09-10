@@ -1,5 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .services import SettingServices
 from .serializers import ProfileSerializer, AppearanceSerializer, NotificationSerializer, SessionSerializer
 from .serializers import UpdateProfileSerializer,  UpdateProfileResponseSerializer
@@ -10,31 +11,43 @@ from .serializers import UpdatePasswordSerializer, UpdatePasswordSerializerRespo
 from .serializers import DeleteSerializer
 
 
+def get_current_session_id(request):
+    return request.auth.get("session_id") if request.auth else None
+
+
 class SettingsAPIView(APIView):
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-       try: 
+       try:
         data = SettingServices.get_settings_data(request.user)
 
-        # current_session = SettingServices.get_current_session(request)
+        current_session_id = get_current_session_id(request)
 
         return Response({
             "profile": ProfileSerializer(data["profile"]).data,
             "appearance": AppearanceSerializer(data["appearance"]).data,
             "notifications": NotificationSerializer(data["notifications"]).data,
             "security": data["security"],
-            "active_sessions": SessionSerializer(data["active_sessions"], many=True).data
+            "active_sessions": SessionSerializer(
+                data["active_sessions"],
+                many=True,
+                context={"current_session_id": current_session_id}
+            ).data
             })
        except Exception as e:
           print(type(e))
           print(e)
           raise
-       
+
 
 class SettingsProfileAPIView(APIView):
-   
+
+   permission_classes = [IsAuthenticated]
+
    def patch(self, request):
-     try: 
+     try:
       serializer = UpdateProfileSerializer(
          data=request.data,
          partial=True,
@@ -58,9 +71,11 @@ class SettingsProfileAPIView(APIView):
 
 
 class SettingsAppearanceAPIView(APIView):
-  
+
+  permission_classes = [IsAuthenticated]
+
   def patch(self, request):
-   try: 
+   try:
     serializer = AppearanceSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -73,13 +88,15 @@ class SettingsAppearanceAPIView(APIView):
      print(type(e))
      print(e)
      raise
-  
+
 
 class SettingsNotificationAPIView(APIView):
-  
+
+  permission_classes = [IsAuthenticated]
+
   def patch(self, request):
    try:
-    serializer = NotificationSerializer(data=request.data)
+    serializer = NotificationSerializer(data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
 
     resp = SettingPatchServices.patch_notification(request.user, serializer.validated_data)
@@ -95,9 +112,11 @@ class SettingsNotificationAPIView(APIView):
 
 
 class SettingsPasswordAPIView(APIView):
-  
+
+  permission_classes = [IsAuthenticated]
+
   def patch(self, request):
-    
+   try:
     serializer = UpdatePasswordSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -106,10 +125,16 @@ class SettingsPasswordAPIView(APIView):
     return Response(
       UpdatePasswordSerializerResponse(resp).data
     )
+   except Exception as e:
+     print(type(e))
+     print(e)
+     raise
 
 
 class SettingsDeleteAPIView(APIView):
-  
+
+  permission_classes = [IsAuthenticated]
+
   def delete(self, request):
    try:
     serializer = DeleteSerializer(data=request.data)
@@ -118,7 +143,7 @@ class SettingsDeleteAPIView(APIView):
     SettingPatchServices.delete_account(request.user ,serializer.validated_data)
 
     return Response({
-      "user account deleted succesfully"
+      "message": "User account deleted successfully"
     })
    except Exception as e:
      print(type(e))
@@ -128,33 +153,35 @@ class SettingsDeleteAPIView(APIView):
 
 class SettingsRevokeAllAPIView(APIView):
 
+  permission_classes = [IsAuthenticated]
+
   def post(self, request):
     SettingPatchServices.revoke_all_sessions(
-      request.user
+      request.user,
+      exclude_session_id=get_current_session_id(request)
     )
 
     return Response({
-      "All sessions revoked successfully"
+      "message": "All other sessions signed out successfully"
     })
-  
+
 class SettingsRevokeAPIView(APIView):
 
-  def post(self, request):
+  permission_classes = [IsAuthenticated]
+
+  def post(self, request, session_id):
    try:
-    
+
     SettingPatchServices.revoke_sessions(
       user=request.user,
-      session_id=request.auth["session_id"]
+      session_id=session_id
     )
 
     return Response({
-      "message": "logged out successfully"
+      "message": "Session signed out successfully"
     })
-   
+
    except Exception as e:
      print(type(e))
      print(e)
      raise
-    
-
-

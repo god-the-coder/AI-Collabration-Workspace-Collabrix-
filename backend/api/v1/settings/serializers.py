@@ -14,6 +14,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields=[
             'id',
             'username',
+            'first_name',
+            'last_name',
             'email',
             'bio',
             'avatar',
@@ -45,9 +47,14 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model=UserSettingsModel
         fields=[
-            'task_notifications',
-            'mention_notifications',
-            'dm_notifications'
+            'email_task_assigned',
+            'email_mentions',
+            'email_workspace_invitations',
+            'email_marketing',
+            'inapp_mentions',
+            'inapp_tasks',
+            'inapp_projects',
+            'inapp_workspaces',
         ]
 
 
@@ -97,13 +104,19 @@ class SessionSerializer(serializers.ModelSerializer):
 
 
 class UpdateProfileSerializer(serializers.Serializer):
-    
+
     first_name = serializers.CharField(
         required=False,
+        allow_blank=True,
         max_length=255
     )
-    last_name = serializers.CharField(required=False, max_length=255)
+    last_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255
+    )
     username = serializers.CharField(required=False, max_length=255)
+    email = serializers.EmailField(required=False)
     avatar = serializers.FileField(required=False)
     bio = serializers.CharField(
         required=False,
@@ -122,7 +135,21 @@ class UpdateProfileSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "This username is already taken"
             )
-        
+
+        return value
+
+    def validate_email(self, value):
+        user = self.context["request"].user
+
+        if UserModel.objects.filter(
+            email__iexact=value
+        ).exclude(
+            pk=user.pk
+        ).exists():
+            raise serializers.ValidationError(
+                "This email is already in use"
+            )
+
         return value
 
 
@@ -182,10 +209,15 @@ class UpdateAppearanceResponseSerializer(serializers.ModelSerializer):
 
 
 class UpdateNotificationSerializer(serializers.Serializer):
-    
-    task_notifications = serializers.BooleanField(required=False)
-    mention_notifications = serializers.BooleanField(required=False)
-    dm_notifications = serializers.BooleanField(required=False)
+
+    email_task_assigned = serializers.BooleanField(required=False)
+    email_mentions = serializers.BooleanField(required=False)
+    email_workspace_invitations = serializers.BooleanField(required=False)
+    email_marketing = serializers.BooleanField(required=False)
+    inapp_mentions = serializers.BooleanField(required=False)
+    inapp_tasks = serializers.BooleanField(required=False)
+    inapp_projects = serializers.BooleanField(required=False)
+    inapp_workspaces = serializers.BooleanField(required=False)
 
 
 class UpdateNotificationResponseSerializer(serializers.ModelSerializer):
@@ -193,9 +225,14 @@ class UpdateNotificationResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model=UserSettingsModel
         fields=[
-            'task_notifications',
-            'mention_notifications',
-            'dm_notifications',
+            'email_task_assigned',
+            'email_mentions',
+            'email_workspace_invitations',
+            'email_marketing',
+            'inapp_mentions',
+            'inapp_tasks',
+            'inapp_projects',
+            'inapp_workspaces',
         ]
 
 

@@ -10,3 +10,6 @@ export const login = (data) =>
 export const getCurrentUserAPI = () => {
     return api.get("v1/profiles/me/");
 }
+
+export const logout = () =>
+    api.post("v1/auth/logout/");
