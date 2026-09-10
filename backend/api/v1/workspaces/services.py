@@ -466,34 +466,31 @@ class WorkspaceService:
 
         membership.delete()
 
-        # Notification
-        try:
-            NotificationService.workspace_member_removed(
-                actor=user,
-                workspace=workspace,
-                member=user
-            )
-        except Exception:
-            pass
+        # Notification (no-op: workspace_member_removed skips
+        # self-notifications, which is correct here since the
+        # actor and the recipient are the same leaving user).
+        NotificationService.workspace_member_removed(
+            actor=user,
+            recipient=user,
+            workspace=workspace
+        )
 
         # Recent activity
-        try:
-            EventLog.objects.create(
-                event_type="WORKSPACE_MEMBER_REMOVED",
-                title="Workspace member removed",
-                description=(
-                    f"{user.username} left workspace "
-                    f"'{workspace.name}'"
-                ),
-                resource_type="WORKSPACE",
-                resource_id=workspace.id,
-                metadata={
-                    "member_id": str(user.id)
-                },
-                actor=user
-            )
-        except Exception:
-            pass
+        EventLog.objects.create(
+            workspace=workspace,
+            actor=user,
+            event_type=EventType.WORKSPACE_MEMBER_REMOVED,
+            title="Workspace member removed",
+            description=(
+                f"{user.username} left workspace "
+                f"'{workspace.name}'"
+            ),
+            resource_type=EventResourceType.WORKSPACE,
+            resource_id=workspace.id,
+            metadata={
+                "member_id": str(user.id)
+            },
+        )
 
         return {
             "detail": "Left workspace successfully"
@@ -553,16 +550,9 @@ class WorkspaceService:
                 "Only workspace owner can update settings"
             )
 
-        workspace_settings = getattr(
-            workspace,
-            "setting_for_workspace",
-            None
+        workspace_settings, _ = WorkspaceSetting.objects.get_or_create(
+            workspace=workspace
         )
-
-        if workspace_settings is None:
-            raise NotFound(
-                "Workspace settings not found"
-            )
 
         for field, value in validated_data.items():
             setattr(
@@ -600,6 +590,193 @@ class WorkspaceService:
             pass
 
         return workspace_settings
+
+
+    # ============================================================
+    # GET WORKSPACE SETTINGS (general + preferences)
+    # ============================================================
+
+    @staticmethod
+    def get_workspace_settings(user, workspace_id):
+
+        workspace = (
+            Workspace.objects
+            .filter(id=workspace_id)
+            .select_related(
+                "logo",
+                "setting_for_workspace"
+            )
+            .first()
+        )
+
+        if workspace is None:
+            raise NotFound(
+                "Workspace not found"
+            )
+
+        membership = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user
+        ).first()
+
+        if membership is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace"
+            )
+
+        workspace_settings, _ = WorkspaceSetting.objects.get_or_create(
+            workspace=workspace
+        )
+
+        return {
+            "workspace": workspace,
+            "settings": workspace_settings,
+            "role": membership.role,
+        }
+
+
+    # ============================================================
+    # UPDATE WORKSPACE GENERAL (name, description, slug, logo)
+    # ============================================================
+
+    @staticmethod
+    @transaction.atomic
+    def update_workspace_general(
+        user,
+        workspace_id,
+        validated_data
+    ):
+
+        workspace = (
+            Workspace.objects
+            .filter(id=workspace_id)
+            .select_related("owner", "logo")
+            .first()
+        )
+
+        if workspace is None:
+            raise NotFound(
+                "Workspace not found"
+            )
+
+        membership = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user
+        ).first()
+
+        if membership is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace"
+            )
+
+        if membership.role != WorkspaceRole.OWNER:
+            raise PermissionDenied(
+                "Only workspace owner can update workspace details"
+            )
+
+        if "slug" in validated_data:
+
+            slug = validated_data["slug"]
+
+            slug_taken = (
+                Workspace.objects
+                .filter(slug=slug)
+                .exclude(pk=workspace.pk)
+                .exists()
+            )
+
+            if slug_taken:
+                raise ValidationError({
+                    "slug": "This workspace URL is already taken."
+                })
+
+        logo_file = validated_data.pop("logo", None)
+
+        if logo_file:
+
+            extension = (
+                logo_file.name.rsplit(".", 1)[-1]
+                if "." in logo_file.name
+                else ""
+            )
+
+            file = File.objects.create(
+                workspace=workspace,
+                uploaded_by=user,
+                original_name=logo_file.name,
+                file=logo_file,
+                mime_type=logo_file.content_type,
+                file_type=FileType.IMAGE,
+                extension=extension,
+                file_size=logo_file.size,
+            )
+
+            workspace.logo = file
+
+        for field, value in validated_data.items():
+            setattr(
+                workspace,
+                field,
+                value
+            )
+
+        workspace.save()
+
+        EventLog.objects.create(
+            workspace=workspace,
+            actor=user,
+            event_type=EventType.WORKSPACE_UPDATED,
+            title="Workspace details updated",
+            description=(
+                f"{user.username} updated workspace details "
+                f"for '{workspace.name}'."
+            ),
+            resource_type=EventResourceType.WORKSPACE,
+            resource_id=workspace.id,
+            metadata={
+                "updated_fields": list(validated_data.keys())
+            }
+        )
+
+        return workspace
+
+
+    # ============================================================
+    # DELETE WORKSPACE
+    # ============================================================
+
+    @staticmethod
+    def delete_workspace(user, workspace_id):
+
+        workspace = Workspace.objects.filter(
+            id=workspace_id
+        ).first()
+
+        if workspace is None:
+            raise NotFound(
+                "Workspace not found"
+            )
+
+        membership = WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user
+        ).first()
+
+        if membership is None:
+            raise PermissionDenied(
+                "You don't have access to this workspace"
+            )
+
+        if membership.role != WorkspaceRole.OWNER:
+            raise PermissionDenied(
+                "Only workspace owner can delete the workspace"
+            )
+
+        workspace.delete()
+
+        return {
+            "detail": "Workspace deleted successfully"
+        }
 
 
     # ============================================================
@@ -1912,6 +2089,8 @@ class InvitationService:
                 "role": invitation.role,
             },
         )
+
+        return invitation.workspace
 
 
     # ============================================================

@@ -11,6 +11,10 @@ from .views import (
     AcceptInvitationAPIView,
     RemoveMemberAPIView,
     ChangeMemberRoleAPIView,
+    LeaveWorkspaceAPIView,
+    WorkspaceSettingsAPIView,
+    WorkspaceGeneralUpdateAPIView,
+    WorkspaceSettingsUpdateAPIView,
 )
 
 
@@ -55,6 +59,12 @@ urlpatterns = [
         name="workspace_members",
     ),
 
+    path(
+        "<uuid:workspace_id>/leave/",
+        LeaveWorkspaceAPIView.as_view(),
+        name="leave_workspace",
+    ),
+
 
     path(
         "<uuid:workspace_id>/invite/",
@@ -79,5 +89,23 @@ urlpatterns = [
         "<uuid:workspace_id>/members/<uuid:user_id>/role/",
         ChangeMemberRoleAPIView.as_view(),
         name="change_member_role",
+    ),
+
+    path(
+        "<uuid:workspace_id>/settings/",
+        WorkspaceSettingsAPIView.as_view(),
+        name="workspace_settings",
+    ),
+
+    path(
+        "<uuid:workspace_id>/settings/general/",
+        WorkspaceGeneralUpdateAPIView.as_view(),
+        name="workspace_settings_general",
+    ),
+
+    path(
+        "<uuid:workspace_id>/settings/preferences/",
+        WorkspaceSettingsUpdateAPIView.as_view(),
+        name="workspace_settings_preferences",
     ),
 ]

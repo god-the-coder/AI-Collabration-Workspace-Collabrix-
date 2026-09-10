@@ -56,6 +56,8 @@ class WorkspaceListSerializer(serializers.ModelSerializer):
 
     workspace_logo = serializers.SerializerMethodField()
 
+    initials = serializers.SerializerMethodField()
+
     recent_members = serializers.SerializerMethodField()
 
     remaining_members_count = serializers.SerializerMethodField()
@@ -85,6 +87,7 @@ class WorkspaceListSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "workspace_logo",
+            "initials",
             "role",
             "members_count",
             "projects_count",
@@ -99,6 +102,19 @@ class WorkspaceListSerializer(serializers.ModelSerializer):
             return obj.logo.file.url
 
         return None
+
+    def get_initials(self, obj):
+
+        words = obj.name.split()
+
+        if len(words) >= 2:
+
+            return (
+                words[0][0]
+                + words[1][0]
+            ).upper()
+
+        return obj.name[:2].upper()
 
     def get_recent_members(self, obj):
 
@@ -243,6 +259,73 @@ class WorkspaceLayoutSerializer(serializers.ModelSerializer):
 
 
 # ============================================================
+# Workspace general settings (name, description, slug, logo)
+# ============================================================
+
+class WorkspaceGeneralSerializer(serializers.ModelSerializer):
+
+    logo = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
+    class Meta:
+
+        model = Workspace
+
+        fields = [
+            "id",
+            "name",
+            "description",
+            "slug",
+            "logo",
+            "initials",
+        ]
+
+    def get_logo(self, obj):
+
+        if obj.logo:
+            return obj.logo.file.url
+
+        return None
+
+    def get_initials(self, obj):
+
+        words = obj.name.split()
+
+        if len(words) >= 2:
+
+            return (
+                words[0][0]
+                + words[1][0]
+            ).upper()
+
+        return obj.name[:2].upper()
+
+
+class WorkspaceGeneralUpdateSerializer(serializers.Serializer):
+
+    name = serializers.CharField(
+        required=False,
+        min_length=3,
+        max_length=255,
+    )
+
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+    slug = serializers.SlugField(
+        required=False,
+        max_length=255,
+    )
+
+    logo = serializers.FileField(
+        required=False
+    )
+
+
+# ============================================================
 # Workspace settings response
 # ============================================================
 
@@ -349,6 +432,11 @@ class WorkspaceMemberSerializer(
     serializers.ModelSerializer
 ):
 
+    user_id = serializers.UUIDField(
+        source="user.id",
+        read_only=True,
+    )
+
     username = serializers.CharField(
         source="user.username",
         read_only=True,
@@ -375,6 +463,7 @@ class WorkspaceMemberSerializer(
 
         fields = [
             "id",
+            "user_id",
             "username",
             "email",
             "avatar",
