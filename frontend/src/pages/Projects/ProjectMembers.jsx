@@ -45,53 +45,59 @@ export default function ProjectMembers() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showMemberModal, setShowMemberModal] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchMembers = () => {
     setLoading(true);
     setError(null);
 
-    projectMembers(projectId)
+    return projectMembers(projectId)
       .then((res) => {
-        if (!cancelled) {
-          setMembers(res.data?.members ?? []);
-        }
+        setMembers(res.data?.members ?? []);
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(err?.response?.data?.detail ?? 'Failed to load members.');
-        }
+        setError(err?.response?.data?.detail ?? 'Failed to load members.');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       });
+  };
 
-    return () => { cancelled = true; };
+  useEffect(() => {
+    fetchMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   return (
     <div>
-      <Toolbar />
+      <Toolbar onAddClick={() => setShowMemberModal(true)} />
       <div className="mt-6 pb-8">
         {loading ? (
           <LoadingState />
         ) : error ? (
           <ErrorState message={error} />
         ) : members.length === 0 ? (
-          <EmptyState />
+          <EmptyState onAddClick={() => setShowMemberModal(true)} />
         ) : (
           <MembersGrid members={members} />
         )}
       </div>
+
+      {showMemberModal && (
+        <AddProjectMembersModal
+          projectId={projectId}
+          onClose={() => setShowMemberModal(false)}
+          onMembersAdded={fetchMembers}
+        />
+      )}
     </div>
   );
 }
 
 // ─── TOOLBAR ───────────────────────────────────────────────────────────────
 
-function Toolbar() {
+function Toolbar({ onAddClick }) {
 
-  const [showMemberModal, setShowMemberModal] = useState(false);
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
@@ -126,9 +132,9 @@ function Toolbar() {
         </div>
       </div>
 
-      {/* Add Member — will later open AddMemberModal */}
+      {/* Add Member */}
       <button
-        onClick={() => setShowMemberModal(true)}
+        onClick={onAddClick}
         type="button"
         className="group/btn relative shrink-0 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
       >
@@ -138,10 +144,6 @@ function Toolbar() {
           Add Member
         </span>
       </button>
-
-      {showMemberModal && (
-        <AddProjectMembersModal onClose={() => setShowMemberModal(false)} />
-      )}
     </div>
   );
 }
@@ -288,7 +290,7 @@ function ErrorState({ message }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ onAddClick }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/70 px-6 py-14 text-center backdrop-blur-sm dark:border-white/[0.06] dark:bg-white/[0.025]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.04] to-transparent dark:via-white/[0.06]" />
@@ -304,6 +306,7 @@ function EmptyState() {
 
       <button
         type="button"
+        onClick={onAddClick}
         className="group/btn relative mt-5 inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
       >
         <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />

@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import ProjectsListRetrieveAPIView, CreateProjectAPIView, ProjectDetailAPIView, ProjectOverviewAPIView
 from .views import ProjectTasksAPIView, ProjectMembersAPIView, ProjectLogoUpdateAPIView
+from .views import AvailableProjectMembersAPIView
 
 urlpatterns = [
     path(
@@ -31,6 +32,11 @@ urlpatterns = [
     path(
         "<uuid:project_id>/members/",
         ProjectMembersAPIView.as_view()
+    ),
+
+    path(
+        "<uuid:project_id>/members/available/",
+        AvailableProjectMembersAPIView.as_view()
     ),
 
     path(

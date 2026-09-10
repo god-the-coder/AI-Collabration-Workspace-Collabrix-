@@ -86,6 +86,23 @@ class NotificationService:
         Notification.objects.bulk_create(notifications)
 
 
+    @staticmethod
+    def project_member_added(actor, recipient, project):
+
+        if actor == recipient:
+            return
+
+        Notification.objects.create(
+            actor=actor,
+            recipient=recipient,
+            workspace=project.workspace,
+            title="Added to Project",
+            message=f"{actor.username} added you to '{project.name}'.",
+            notification_type=NotificationType.PROJECT_INVITATION,
+            target_type=NotificationTargetType.PROJECT,
+            target_id=project.id,
+        )
+
 
     @staticmethod
     def task_assigned(actor, recipient, workspace, task):

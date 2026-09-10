@@ -4,7 +4,11 @@ from .services import ProjectsListService, NewProjectService, ProjectDetailServi
 from .serializers import ProjectOverviewSerializer,ProjectDetailSerializer,ProjectListSerializer, CreateProjectSerializer, CreateProjectResponseSerializer
 from .serializers import ProjectLogoUpdateSerializer
 from rest_framework.response import Response
-from .serializers import ProjectMembersResponseSerializer
+from .serializers import (
+    ProjectMembersResponseSerializer,
+    AvailableProjectMemberSerializer,
+    AddProjectMembersSerializer,
+)
 from .services import ProjectMembersService
 
 
@@ -133,6 +137,8 @@ class ProjectTasksAPIView(APIView):
 
 class ProjectMembersAPIView(APIView):
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, project_id):
 
         response = ProjectMembersService.get_members(
@@ -143,4 +149,52 @@ class ProjectMembersAPIView(APIView):
         return Response(
             ProjectMembersResponseSerializer(response).data
         )
+
+    def post(self, request, project_id):
+        try:
+
+            serializer = AddProjectMembersSerializer(
+                data=request.data
+            )
+            serializer.is_valid(raise_exception=True)
+
+            members = ProjectMembersService.add_members(
+                user=request.user,
+                project_id=project_id,
+                members_data=serializer.validated_data["members"]
+            )
+
+            return Response(
+                ProjectMembersResponseSerializer(
+                    {"members": members}
+                ).data
+            )
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise
+
+
+class AvailableProjectMembersAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id):
+        try:
+
+            available_members = ProjectMembersService.get_available_members(
+                request.user,
+                project_id
+            )
+
+            return Response({
+                "available_members": AvailableProjectMemberSerializer(
+                    available_members,
+                    many=True
+                ).data
+            })
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise
 

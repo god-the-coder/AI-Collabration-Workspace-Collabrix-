@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from apps.projects.models import Project, ProjectMember, ProjectStatus
+from apps.projects.models import Project, ProjectMember, ProjectStatus, ProjectRole
 from apps.tasks.models import Task
+from apps.workspaces.models import WorkspaceMember
 
 class ProjectWorkspaceSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
@@ -478,5 +479,94 @@ class ProjectMembersResponseSerializer(serializers.Serializer):
     members = ProjectMemberCardSerializer(
         many=True
     )
+
+
+class AvailableProjectMemberSerializer(serializers.ModelSerializer):
+
+    id = serializers.UUIDField(
+        source="user.id",
+        read_only=True
+    )
+
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    email = serializers.EmailField(
+        source="user.email",
+        read_only=True
+    )
+
+    avatar = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
+    workspace_role = serializers.CharField(
+        source="role",
+        read_only=True
+    )
+
+    class Meta:
+
+        model = WorkspaceMember
+
+        fields = [
+            "id",
+            "username",
+            "email",
+            "avatar",
+            "initials",
+            "workspace_role",
+        ]
+
+    def get_avatar(self, obj):
+
+        if obj.user.avatar:
+            return obj.user.avatar.file.url
+
+        return None
+
+    def get_initials(self, obj):
+
+        username = obj.user.username.split()
+
+        if len(username) >= 2:
+            return (
+                username[0][0] +
+                username[1][0]
+            ).upper()
+
+        return obj.user.username[:2].upper()
+
+
+class AddProjectMembersItemSerializer(serializers.Serializer):
+
+    user_id = serializers.UUIDField(
+        required=True
+    )
+
+    role = serializers.ChoiceField(
+        choices=ProjectRole.choices,
+        required=False,
+        default=ProjectRole.MEMBER,
+    )
+
+
+class AddProjectMembersSerializer(serializers.Serializer):
+
+    members = AddProjectMembersItemSerializer(
+        many=True,
+        required=True,
+    )
+
+    def validate_members(self, value):
+
+        if not value:
+            raise serializers.ValidationError(
+                "Select at least one member to add."
+            )
+
+        return value
 
 

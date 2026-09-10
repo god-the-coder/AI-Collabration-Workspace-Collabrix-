@@ -1,9 +1,10 @@
 from apps.projects.models import ProjectMember, Project, ProjectStatus, ProjectRole
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Subquery, OuterRef
 from apps.workspaces.models import Workspace, WorkspaceRole, WorkspaceMember
 from apps.files.models import File, FileType
-from rest_framework.exceptions import PermissionDenied, NotFound
+from rest_framework.exceptions import PermissionDenied, NotFound, ValidationError
 from apps.tasks.models import TaskStatus, Task
 from .serializers import TaskCardSerializer
 from datetime import timedelta
@@ -411,4 +412,125 @@ class ProjectMembersService:
         return {
             "members": members
         }
+
+
+    @staticmethod
+    def get_available_members(user, project_id):
+
+        project = Project.objects.filter(
+            id=project_id,
+            members__user=user
+        ).select_related(
+            "workspace"
+        ).first()
+
+        if project is None:
+            raise PermissionDenied(
+                "You don't have access to this project."
+            )
+
+        existing_member_ids = ProjectMember.objects.filter(
+            project=project
+        ).values_list(
+            "user_id",
+            flat=True
+        )
+
+        available_members = (
+            WorkspaceMember.objects
+            .filter(
+                workspace=project.workspace
+            )
+            .exclude(
+                user_id__in=existing_member_ids
+            )
+            .select_related(
+                "user",
+                "user__avatar"
+            )
+            .order_by("user__username")
+        )
+
+        return available_members
+
+
+    @staticmethod
+    @transaction.atomic
+    def add_members(user, project_id, members_data):
+
+        project = Project.objects.filter(
+            id=project_id
+        ).select_related(
+            "workspace"
+        ).first()
+
+        if project is None:
+            raise NotFound("Project not found.")
+
+        requesting_membership = ProjectMember.objects.filter(
+            project=project,
+            user=user
+        ).first()
+
+        if requesting_membership is None:
+            raise PermissionDenied(
+                "You don't have access to this project."
+            )
+
+        if requesting_membership.role != ProjectRole.ADMIN:
+            raise PermissionDenied(
+                "Only project admins can add members."
+            )
+
+        workspace_member_ids = set(
+            WorkspaceMember.objects.filter(
+                workspace=project.workspace,
+                user_id__in=[
+                    item["user_id"] for item in members_data
+                ]
+            ).values_list("user_id", flat=True)
+        )
+
+        existing_member_ids = set(
+            ProjectMember.objects.filter(
+                project=project
+            ).values_list("user_id", flat=True)
+        )
+
+        added_members = []
+
+        for item in members_data:
+
+            target_user_id = item["user_id"]
+            role = item.get("role", ProjectRole.MEMBER)
+
+            if target_user_id not in workspace_member_ids:
+                raise ValidationError(
+                    "All selected members must belong to this "
+                    "project's workspace."
+                )
+
+            if target_user_id in existing_member_ids:
+                continue
+
+            member = ProjectMember.objects.create(
+                project=project,
+                user_id=target_user_id,
+                role=role,
+            )
+
+            existing_member_ids.add(target_user_id)
+            added_members.append(member)
+
+        for member in added_members:
+
+            NotificationService.project_member_added(
+                actor=user,
+                recipient=member.user,
+                project=project,
+            )
+
+        return ProjectMembersService.get_members(
+            user, project_id
+        )["members"]
 

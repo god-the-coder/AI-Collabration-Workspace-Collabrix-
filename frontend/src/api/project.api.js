@@ -25,6 +25,14 @@ export const projectMembers = (projectId) => {
     return api.get(`v1/projects/${projectId}/members/`);
 }
 
+export const availableProjectMembers = (projectId) => {
+    return api.get(`v1/projects/${projectId}/members/available/`);
+}
+
+export const addProjectMembers = (projectId, members) => {
+    return api.post(`v1/projects/${projectId}/members/`, { members });
+}
+
 export const updateProjectLogo = (projectId, logoFile) => {
     const formData = new FormData();
     formData.append("logo", logoFile);

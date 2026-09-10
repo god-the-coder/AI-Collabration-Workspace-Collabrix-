@@ -1,49 +1,131 @@
-import React from 'react';
-import { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { availableProjectMembers, projectMembers, addProjectMembers } from '../../api/project.api';
+import { extractApiError } from '../../utils/apiError';
+import Avatar from '../../components/common/Avatar';
 
-
-
-const AVAILABLE_MEMBERS = [
-  { id: 'a1', name: 'Sarah Johnson', username: 'sarah', email: 'sarah@example.com', workspaceRole: 'Workspace Admin', initials: 'SJ', color: 'bg-indigo-500', selected: true },
-  { id: 'a2', name: 'Marcus Lee', username: 'marcus', email: 'marcus@example.com', workspaceRole: 'Workspace Member', initials: 'ML', color: 'bg-amber-500', selected: true },
-  { id: 'a3', name: 'David Chen', username: 'david', email: 'david@example.com', workspaceRole: 'Workspace Member', initials: 'DC', color: 'bg-emerald-500', selected: true },
-  { id: 'a4', name: 'Priya Sharma', username: 'priya', email: 'priya@example.com', workspaceRole: 'Workspace Member', initials: 'PS', color: 'bg-rose-500', selected: false },
-  { id: 'a5', name: 'Jamie Thompson', username: 'jamie', email: 'jamie@example.com', workspaceRole: 'Workspace Admin', initials: 'JT', color: 'bg-violet-500', selected: false },
+const PROJECT_ROLE_OPTIONS = [
+  { label: 'Member', value: 'MEMBER' },
+  { label: 'Admin', value: 'ADMIN' },
 ];
 
-const ALREADY_IN_PROJECT = [
-  { id: 'p1', name: 'Emma Wilson', workspaceRole: 'Workspace Member', initials: 'EW', color: 'bg-cyan-500' },
-  { id: 'p2', name: 'Raj Verma', workspaceRole: 'Workspace Admin', initials: 'RV', color: 'bg-orange-500' },
+const MEMBER_COLORS = [
+  'bg-indigo-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
+  'bg-rose-500', 'bg-cyan-500', 'bg-orange-500',
 ];
 
-const PROJECT_ROLE_OPTIONS = ['Member', 'Admin'];
+const getAvatarColor = (id) => {
+  let hash = 0;
+  for (let i = 0; i < (id || '').length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return MEMBER_COLORS[Math.abs(hash) % MEMBER_COLORS.length];
+};
 
-// Flip this during visual QA to preview the empty state. Not wired to any
-// real search/data source — purely a manual toggle for reviewing both states.
-const SHOW_EMPTY_STATE = false;
+const roleLabel = (role) => {
+  if (role === 'OWNER') return 'Workspace Owner';
+  if (role === 'ADMIN') return 'Workspace Admin';
+  return 'Workspace Member';
+};
 
-export default function AddProjectMembersModal({onClose}) {
-  const selectedCount = AVAILABLE_MEMBERS.filter((m) => m.selected).length;
+export default function AddProjectMembersModal({ projectId, onClose, onMembersAdded }) {
+  const [availableMembers, setAvailableMembers] = useState([]);
+  const [alreadyMembers, setAlreadyMembers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const [search, setSearch] = useState('');
+  const [selectedRoles, setSelectedRoles] = useState({});
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        onClose();
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const [availableResp, membersResp] = await Promise.all([
+          availableProjectMembers(projectId),
+          projectMembers(projectId),
+        ]);
+        if (!cancelled) {
+          setAvailableMembers(availableResp.data?.available_members ?? []);
+          setAlreadyMembers(membersResp.data?.members ?? []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(extractApiError(err, 'Failed to load workspace members.'));
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
+    if (projectId) fetchData();
 
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  const filteredAvailable = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return availableMembers;
+    return availableMembers.filter(
+      (m) =>
+        m.username?.toLowerCase().includes(q) ||
+        m.email?.toLowerCase().includes(q)
+    );
+  }, [availableMembers, search]);
+
+  const selectedCount = Object.keys(selectedRoles).length;
+
+  const toggleSelect = (memberId) => {
+    setSelectedRoles((prev) => {
+      const next = { ...prev };
+      if (next[memberId]) {
+        delete next[memberId];
+      } else {
+        next[memberId] = 'MEMBER';
+      }
+      return next;
+    });
+  };
+
+  const setRoleFor = (memberId, role) => {
+    setSelectedRoles((prev) => ({ ...prev, [memberId]: role }));
+  };
+
+  const handleSubmit = async () => {
+    if (selectedCount === 0) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const members = Object.entries(selectedRoles).map(([user_id, role]) => ({ user_id, role }));
+      await addProjectMembers(projectId, members);
+      await onMembersAdded?.();
+      onClose();
+    } catch (err) {
+      setSubmitError(extractApiError(err, 'Failed to add members.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div
-      onClick={onClose} 
+      onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Local keyframes for the subtle entrance animation — no JS involved,
-          this plays automatically whenever the component is mounted. */}
       <style>{`
         @keyframes apmOverlayFadeIn {
           from { opacity: 0; }
@@ -99,6 +181,8 @@ export default function AddProjectMembersModal({onClose}) {
             </div>
             <input
               type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search workspace members..."
               aria-label="Search workspace members"
               className="h-9 w-full rounded-xl border border-zinc-200 bg-zinc-100/60 pl-9 pr-4 text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:ring-indigo-400/30"
@@ -108,8 +192,10 @@ export default function AddProjectMembersModal({onClose}) {
 
         {/* Scrollable content */}
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
-          {SHOW_EMPTY_STATE ? (
-            <EmptyState />
+          {isLoading ? (
+            <p className="py-10 text-center text-[13px] text-zinc-400 dark:text-zinc-500">Loading workspace members…</p>
+          ) : loadError ? (
+            <p className="py-10 text-center text-[13px] text-red-500 dark:text-red-400">{loadError}</p>
           ) : (
             <>
               {/* Available Members */}
@@ -117,56 +203,67 @@ export default function AddProjectMembersModal({onClose}) {
                 <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                   Available Members
                 </p>
-                <div className="space-y-2.5">
-                  {AVAILABLE_MEMBERS.map((member) => (
-                    <AvailableMemberRow key={member.id} member={member} />
-                  ))}
-                </div>
+                {filteredAvailable.length === 0 ? (
+                  <EmptyState hasSearch={!!search.trim()} />
+                ) : (
+                  <div className="space-y-2.5">
+                    {filteredAvailable.map((member) => (
+                      <AvailableMemberRow
+                        key={member.id}
+                        member={member}
+                        selected={!!selectedRoles[member.id]}
+                        role={selectedRoles[member.id] || 'MEMBER'}
+                        onToggle={() => toggleSelect(member.id)}
+                        onRoleChange={(role) => setRoleFor(member.id, role)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Already in Project */}
-              <div>
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Already in Project
-                </p>
-                <div className="space-y-2.5">
-                  {ALREADY_IN_PROJECT.map((member) => (
-                    <AlreadyAddedRow key={member.id} member={member} />
-                  ))}
+              {alreadyMembers.length > 0 && (
+                <div>
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                    Already in Project
+                  </p>
+                  <div className="space-y-2.5">
+                    {alreadyMembers.map((member) => (
+                      <AlreadyAddedRow key={member.id} member={member} />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
+          )}
+
+          {submitError && (
+            <p className="text-[12.5px] text-red-500 dark:text-red-400">{submitError}</p>
           )}
         </div>
 
         {/* Footer */}
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4 dark:border-white/[0.05] sm:px-6">
           <button
-            onClick={onClose}            
+            onClick={onClose}
             type="button"
-            className="rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100 dark:focus-visible:ring-indigo-400/40"
+            disabled={isSubmitting}
+            className="rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100 dark:focus-visible:ring-indigo-400/40"
           >
             Cancel
           </button>
 
-          {/*
-            Idle state shown below. Once submission is wired up, swap the
-            inner <span> for a loading variant, e.g.:
-
-            <span className="relative flex items-center gap-2">
-              <Spinner /> Adding Members...
-            </span>
-
-            and add `disabled` + reduced opacity/cursor-not-allowed to the
-            button while in that state. The Spinner icon is defined at the
-            bottom of this file, ready to use.
-          */}
           <button
             type="button"
-            className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
+            onClick={handleSubmit}
+            disabled={selectedCount === 0 || isSubmitting}
+            className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
           >
             <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
-            <span className="relative">Add Members ({selectedCount})</span>
+            <span className="relative flex items-center gap-2">
+              {isSubmitting && <Spinner />}
+              {isSubmitting ? 'Adding Members…' : `Add Members (${selectedCount})`}
+            </span>
           </button>
         </div>
       </div>
@@ -176,51 +273,59 @@ export default function AddProjectMembersModal({onClose}) {
 
 // ─── AVAILABLE MEMBER ROW ───────────────────────────────────────────────────
 
-function AvailableMemberRow({ member }) {
+function AvailableMemberRow({ member, selected, role, onToggle, onRoleChange }) {
   return (
     <div className="group flex flex-col gap-3 rounded-xl border border-zinc-200/70 bg-white/70 p-3.5 backdrop-blur-sm transition-all duration-200 hover:border-zinc-300/80 hover:shadow-[0_4px_16px_-6px_rgba(24,24,27,0.1)] dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:border-white/[0.1] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
-        {/* Custom presentational checkbox — visual only */}
-        <span
+        <button
+          type="button"
+          onClick={onToggle}
           role="checkbox"
-          aria-checked={member.selected}
-          aria-label={`Select ${member.name}`}
-          className={`mt-1 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border-2 transition-colors ${member.selected
+          aria-checked={selected}
+          aria-label={`Select ${member.username}`}
+          className={`mt-1 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border-2 transition-colors ${selected
               ? 'border-indigo-600 bg-indigo-600'
               : 'border-zinc-300 dark:border-white/20'
             }`}
         >
-          {member.selected && <CheckIcon />}
-        </span>
+          {selected && <CheckIcon />}
+        </button>
 
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${member.color}`}>
-          {member.initials}
-        </div>
+        <button type="button" onClick={onToggle} className="contents text-left">
+          <Avatar
+            src={member.avatar}
+            initials={member.initials}
+            name={member.username}
+            size="sm"
+            rounded="rounded-full"
+          />
 
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-              {member.name}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                @{member.username}
+              </span>
+            </div>
+            <span className="mt-1 inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-medium text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400">
+              {roleLabel(member.workspace_role)}
             </span>
-            <span className="text-[12px] text-zinc-400 dark:text-zinc-500">@{member.username}</span>
+            <p className="mt-1 truncate text-[12px] text-zinc-400 dark:text-zinc-500">{member.email}</p>
           </div>
-          <span className="mt-1 inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-medium text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400">
-            {member.workspaceRole}
-          </span>
-          <p className="mt-1 truncate text-[12px] text-zinc-400 dark:text-zinc-500">{member.email}</p>
-        </div>
+        </button>
       </div>
 
       {/* Project Role dropdown — available members only */}
       <div className="relative shrink-0 pl-[30px] sm:pl-0">
         <select
-          defaultValue="Member"
-          aria-label={`Project role for ${member.name}`}
-          className="h-8 w-[120px] appearance-none rounded-lg border border-zinc-200 bg-white pl-2.5 pr-7 text-[12px] font-medium text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-300 dark:focus-visible:ring-indigo-400/30"
+          value={role}
+          disabled={!selected}
+          onChange={(e) => onRoleChange(e.target.value)}
+          aria-label={`Project role for ${member.username}`}
+          className="h-8 w-[120px] appearance-none rounded-lg border border-zinc-200 bg-white pl-2.5 pr-7 text-[12px] font-medium text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-300 dark:focus-visible:ring-indigo-400/30"
         >
-          {PROJECT_ROLE_OPTIONS.map((role) => (
-            <option key={role} value={role}>
-              {role}
+          {PROJECT_ROLE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
             </option>
           ))}
         </select>
@@ -238,14 +343,18 @@ function AlreadyAddedRow({ member }) {
   return (
     <div className="flex cursor-not-allowed items-center justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50/60 p-3.5 opacity-70 dark:border-white/[0.04] dark:bg-white/[0.015]">
       <div className="flex min-w-0 items-center gap-3">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white opacity-80 ${member.color}`}>
-          {member.initials}
-        </div>
+        <Avatar
+          src={member.avatar}
+          initials={member.initials}
+          name={member.username}
+          size="sm"
+          rounded="rounded-full"
+        />
         <div className="min-w-0">
           <span className="text-[13px] font-medium text-zinc-600 dark:text-zinc-400">
-            {member.name}
+            {member.handle ?? `@${member.username}`}
           </span>
-          <p className="mt-0.5 text-[11.5px] text-zinc-400 dark:text-zinc-500">{member.workspaceRole}</p>
+          <p className="mt-0.5 text-[11.5px] text-zinc-400 dark:text-zinc-500">{roleLabel(member.role)}</p>
         </div>
       </div>
 
@@ -259,17 +368,19 @@ function AlreadyAddedRow({ member }) {
 
 // ─── EMPTY STATE ───────────────────────────────────────────────────────────
 
-function EmptyState() {
+function EmptyState({ hasSearch }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400 dark:bg-white/[0.05] dark:text-zinc-500">
         <UsersIcon />
       </div>
       <p className="text-[14px] font-semibold text-zinc-700 dark:text-zinc-300">
-        No workspace members available.
+        {hasSearch ? 'No matching members.' : 'No workspace members available.'}
       </p>
       <p className="mx-auto mt-1 max-w-xs text-[13px] text-zinc-400 dark:text-zinc-500">
-        Invite teammates to your workspace before adding them to this project.
+        {hasSearch
+          ? 'Try a different search term.'
+          : 'Invite teammates to your workspace before adding them to this project.'}
       </p>
     </div>
   );
@@ -322,8 +433,6 @@ function UsersIcon() {
   );
 }
 
-// Defined for later use in the button's loading state — not rendered by
-// default. See the comment above the "Add Members" button.
 function Spinner() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="animate-spin">
