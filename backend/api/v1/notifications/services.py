@@ -1,3 +1,6 @@
+from django.utils import timezone
+from rest_framework.exceptions import NotFound
+
 from apps.notifications.models import Notification, NotificationType, NotificationTargetType
 
 
@@ -21,7 +24,39 @@ class NotificationService:
             "unread_count": unread_count,
             "notifications": notifications,
         }
-    
+
+    @staticmethod
+    def mark_as_read(user, notification_id):
+        try:
+            notification = Notification.objects.get(
+                id=notification_id,
+                recipient=user,
+            )
+        except Notification.DoesNotExist:
+            raise NotFound("Notification not found.")
+
+        if not notification.is_read:
+            notification.is_read = True
+            notification.read_at = timezone.now()
+            notification.save(update_fields=["is_read", "read_at"])
+
+        return notification
+
+    @staticmethod
+    def mark_all_as_read(user):
+        Notification.objects.filter(
+            recipient=user,
+            is_read=False,
+        ).update(
+            is_read=True,
+            read_at=timezone.now(),
+        )
+
+        return {
+            "unread_count": 0,
+        }
+
+
 
     @staticmethod
     def project_created(actor, workspace, project):
