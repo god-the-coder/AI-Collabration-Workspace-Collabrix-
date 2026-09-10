@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useOutletContext } from 'react-router-dom';
 
 import CreateTaskModal from '../Tasks/CreateTaskModal';
 import { projectTasks } from '../../api/project.api';
@@ -118,6 +118,8 @@ function buildColumns(data) {
 
 export default function ProjectTasks() {
   const { projectId } = useParams();
+  const { project } = useOutletContext();
+  const workspaceId = project?.workspace_id;
 
   const [columns, setColumns] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -172,6 +174,7 @@ export default function ProjectTasks() {
 
         {isCreateTaskOpen && (
           <CreateTaskModal
+            workspaceId={workspaceId}
             projectId={projectId}
             onClose={() => setIsCreateTaskOpen(false)}
             onTaskCreated={handleTaskCreated}
@@ -210,6 +213,7 @@ export default function ProjectTasks() {
 
         {isCreateTaskOpen && (
           <CreateTaskModal
+            workspaceId={workspaceId}
             projectId={projectId}
             onClose={() => setIsCreateTaskOpen(false)}
             onTaskCreated={handleTaskCreated}
@@ -244,6 +248,7 @@ export default function ProjectTasks() {
 
       {isCreateTaskOpen && (
         <CreateTaskModal
+          workspaceId={workspaceId}
           projectId={projectId}
           onClose={() => setIsCreateTaskOpen(false)}
           onTaskCreated={handleTaskCreated}

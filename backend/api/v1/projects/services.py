@@ -2,7 +2,8 @@ from apps.projects.models import ProjectMember, Project, ProjectStatus, ProjectR
 from django.utils import timezone
 from django.db.models import Count, Prefetch, Q, Subquery, OuterRef
 from apps.workspaces.models import Workspace, WorkspaceRole, WorkspaceMember
-from rest_framework.exceptions import PermissionDenied
+from apps.files.models import File, FileType
+from rest_framework.exceptions import PermissionDenied, NotFound
 from apps.tasks.models import TaskStatus, Task
 from .serializers import TaskCardSerializer
 from datetime import timedelta
@@ -31,7 +32,8 @@ class ProjectsListService:
         return Project.objects.filter(
             members__user=user
         ).select_related(
-            "workspace"
+            "workspace",
+            "logo"
         ).prefetch_related(
             Prefetch(
                 "members",
@@ -146,7 +148,8 @@ class ProjectDetailService:
                 members__user=user
             )
             .select_related(
-                "workspace"
+                "workspace",
+                "logo"
             )
             .annotate(
                 members_count=Count(
@@ -172,6 +175,51 @@ class ProjectDetailService:
             raise PermissionDenied(
                 "You don't have access to this project."
             )
+
+        return project
+
+    @staticmethod
+    def update_logo(user, project_id, logo_file):
+
+        project = (
+            Project.objects
+            .filter(id=project_id)
+            .select_related("logo")
+            .first()
+        )
+
+        if project is None:
+            raise NotFound("Project not found.")
+
+        membership = ProjectMember.objects.filter(
+            project=project,
+            user=user
+        ).first()
+
+        if membership is None or membership.role != ProjectRole.ADMIN:
+            raise PermissionDenied(
+                "Only project admins can update the project logo."
+            )
+
+        extension = (
+            logo_file.name.rsplit(".", 1)[-1]
+            if "." in logo_file.name
+            else ""
+        )
+
+        file = File.objects.create(
+            workspace=project.workspace,
+            uploaded_by=user,
+            original_name=logo_file.name,
+            file=logo_file,
+            mime_type=logo_file.content_type,
+            file_type=FileType.IMAGE,
+            extension=extension,
+            file_size=logo_file.size,
+        )
+
+        project.logo = file
+        project.save(update_fields=["logo"])
 
         return project
 

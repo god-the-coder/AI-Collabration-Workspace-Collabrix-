@@ -24,3 +24,12 @@ export const projectTasks = (projectId) => {
 export const projectMembers = (projectId) => {
     return api.get(`v1/projects/${projectId}/members/`);
 }
+
+export const updateProjectLogo = (projectId, logoFile) => {
+    const formData = new FormData();
+    formData.append("logo", logoFile);
+
+    return api.patch(`v1/projects/${projectId}/logo/`, formData, {
+        headers: { "Content-Type": undefined },
+    });
+}

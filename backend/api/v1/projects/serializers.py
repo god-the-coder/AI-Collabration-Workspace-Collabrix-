@@ -44,6 +44,10 @@ class ProjectListSerializer(serializers.ModelSerializer):
 
     remaining_members_count = serializers.SerializerMethodField()
 
+    logo = serializers.SerializerMethodField()
+
+    initials = serializers.SerializerMethodField()
+
     class Meta:
         model = Project
         fields = [
@@ -55,6 +59,8 @@ class ProjectListSerializer(serializers.ModelSerializer):
             "members_count",
             "remaining_members_count",
             "due_date",
+            "logo",
+            "initials",
         ]
 
     def get_members(self, obj):
@@ -69,6 +75,25 @@ class ProjectListSerializer(serializers.ModelSerializer):
             obj.members_count - 3,
             0
         )
+
+    def get_logo(self, obj):
+
+        if obj.logo:
+            return obj.logo.file.url
+
+        return None
+
+    def get_initials(self, obj):
+
+        words = obj.name.split()
+
+        if len(words) >= 2:
+            return (
+                words[0][0] +
+                words[1][0]
+            ).upper()
+
+        return obj.name[:2].upper()
 
 
 class CreateProjectResponseSerializer(serializers.ModelSerializer):
@@ -121,6 +146,11 @@ class CreateProjectSerializer(serializers.Serializer):
 
 class ProjectDetailSerializer(serializers.ModelSerializer):
 
+    workspace_id = serializers.UUIDField(
+        source="workspace.id",
+        read_only=True
+    )
+
     workspace_name = serializers.CharField(
         source="workspace.name",
         read_only=True
@@ -129,6 +159,8 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     progress_percentage = serializers.SerializerMethodField()
 
     initials = serializers.SerializerMethodField()
+
+    logo = serializers.SerializerMethodField()
 
     # completed_tasks = serializers.IntegerField()
 
@@ -143,6 +175,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "description",
+            "workspace_id",
             "workspace_name",
             "status",
             # "priority",
@@ -151,6 +184,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             "total_tasks",
             "members_count",
             "initials",
+            "logo",
         ]
 
     def get_progress_percentage(self, obj):
@@ -173,6 +207,20 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             ).upper()
 
         return obj.name[:2].upper()
+
+    def get_logo(self, obj):
+
+        if obj.logo:
+            return obj.logo.file.url
+
+        return None
+
+
+class ProjectLogoUpdateSerializer(serializers.Serializer):
+
+    logo = serializers.FileField(
+        required=True
+    )
 
 
 class ProjectOverviewSerializer(serializers.ModelSerializer):

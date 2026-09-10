@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import CreateProjectModal from './CreateProjectModal';
 import { globalProjects } from '../../api/project.api';
+import Avatar from '../../components/common/Avatar';
 
 
 
@@ -298,12 +299,24 @@ const Projects = () => {
 
         {/* Project header */}
         <div className="border-b border-zinc-100 p-5 dark:border-white/[0.05]">
-          <h3 className="text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-            {project.name}
-          </h3>
-          <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-            {project.description || '—'}
-          </p>
+          <div className="flex items-start gap-3">
+            <Avatar
+              src={project.logo}
+              initials={project.initials}
+              name={project.name}
+              size="sm"
+              rounded="rounded-xl"
+            />
+
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
+                {project.name}
+              </h3>
+              <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                {project.description || '—'}
+              </p>
+            </div>
+          </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {/* Workspace badge */}

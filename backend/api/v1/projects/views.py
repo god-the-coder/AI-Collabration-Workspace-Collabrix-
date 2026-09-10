@@ -1,6 +1,8 @@
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from .services import ProjectsListService, NewProjectService, ProjectDetailService, ProjectOverviewService, ProjectTasksService
 from .serializers import ProjectOverviewSerializer,ProjectDetailSerializer,ProjectListSerializer, CreateProjectSerializer, CreateProjectResponseSerializer
+from .serializers import ProjectLogoUpdateSerializer
 from rest_framework.response import Response
 from .serializers import ProjectMembersResponseSerializer
 from .services import ProjectMembersService
@@ -64,6 +66,38 @@ class ProjectDetailAPIView(APIView):
       print(type(e))
       print(e)
       raise
+
+
+class ProjectLogoUpdateAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, project_id):
+        try:
+
+            serializer = ProjectLogoUpdateSerializer(
+                data=request.data
+            )
+            serializer.is_valid(raise_exception=True)
+
+            ProjectDetailService.update_logo(
+                user=request.user,
+                project_id=project_id,
+                logo_file=serializer.validated_data["logo"]
+            )
+
+            project = ProjectDetailService.get_project(
+                project_id,
+                request.user
+            )
+
+            return Response(
+                ProjectDetailSerializer(project).data
+            )
+        except Exception as e:
+            print(type(e))
+            print(e)
+            raise
 
 
 class ProjectOverviewAPIView(APIView):
