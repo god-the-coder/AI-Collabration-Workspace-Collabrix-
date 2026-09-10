@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { login as loginAPI, register as registerAPI, getCurrentUserAPI} from "../api/auth.api";
+import { login as loginAPI, register as registerAPI, getCurrentUserAPI, logout as logoutAPI} from "../api/auth.api";
 import { data } from "react-router-dom";
 import { User } from "lucide-react";
 
@@ -49,6 +49,24 @@ const useAuthStore = create((set) => ({
             set({isLoading: false});
         }
 
+    },
+
+
+    logout: async () => {
+        try {
+            await logoutAPI();
+        }
+        catch (error) {
+            // Even if the request fails, clear local auth state so the
+            // user isn't stuck "logged in" on a dead session.
+        }
+        finally {
+            set({
+                user: null,
+                profileData: null,
+                isAuthenticated: false
+            });
+        }
     },
 
 

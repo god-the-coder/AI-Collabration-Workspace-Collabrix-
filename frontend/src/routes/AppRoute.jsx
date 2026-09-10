@@ -9,7 +9,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Landing from "../pages/Landing/Landing";
 
 // auth
-import Login from "../pages/Auth/login";
+import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 
 // dashboard
@@ -48,6 +48,12 @@ import Settings from "../pages/Settings/Settings";
 // communication module
 import Chats from "../pages/chats/Chats";
 
+// notifications
+import Notifications from "../pages/Notifications/Notifications";
+
+// invitations
+import AcceptInvitation from "../pages/Invitations/AcceptInvitation";
+
 import Test from "../pages/Test";
 
 
@@ -79,6 +85,11 @@ function AppRoutes() {
                 }
             />
 
+            <Route
+                path="/invitations/:token/accept"
+                element={<AcceptInvitation />}
+            />
+
             {/* Protected Application */}
 
             <Route
@@ -99,6 +110,7 @@ function AppRoutes() {
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/notifications" element={<Notifications />} />
 
                 {/* Workspace Module */}
                 <Route

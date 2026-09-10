@@ -38,9 +38,18 @@ class UserSettingsModel(UUIDModel, TimeStampedModel):
     theme = models.CharField(max_length=20, choices=ThemeChoices.choices, default=ThemeChoices.SYSTEM)
     timezone = models.CharField(max_length=50, default="UTC")
     language = models.CharField(max_length=20, choices=LanguageChoices.choices, default=LanguageChoices.ENGLISH)
-    task_notifications = models.BooleanField(default=True)
-    mention_notifications = models.BooleanField(default=True)
-    dm_notifications = models.BooleanField(default=True)
+
+    # Email notifications
+    email_task_assigned = models.BooleanField(default=True)
+    email_mentions = models.BooleanField(default=True)
+    email_workspace_invitations = models.BooleanField(default=True)
+    email_marketing = models.BooleanField(default=False)
+
+    # In-app notifications
+    inapp_mentions = models.BooleanField(default=True)
+    inapp_tasks = models.BooleanField(default=True)
+    inapp_projects = models.BooleanField(default=True)
+    inapp_workspaces = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Settings for {self.user.username}"

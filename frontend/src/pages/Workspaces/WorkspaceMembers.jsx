@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { membersWS } from '../../api/workspace.api';
+import { membersWS, removeMemberWS, changeMemberRoleWS } from '../../api/workspace.api';
+import InviteWorkspaceMemberModal from './InviteWorkspaceMemberModal';
 
 
 
@@ -17,7 +18,6 @@ const STATUS_CONFIG = {
   OFFLINE: { label: 'Offline', dot: 'bg-zinc-400 dark:bg-zinc-600' },
 };
 const FILTERS = ['All', 'Owners', 'Admins', 'Members', 'Guests', 'Pending'];
-const ROW_MENU_ITEMS = ['View Profile', 'Change Role'];
 // Maps filter pill label → backend role value for filtering
 const FILTER_ROLE_MAP = {
   Owners:  'OWNER',
@@ -71,25 +71,26 @@ export default function WorkspaceMembers() {
   const [error, setError]               = useState(null);
   const [search, setSearch]             = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const fetchMembers = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await membersWS(workspaceId);
+      setSummary(response.data.summary);
+      setMembers(response.data.members);
+    } catch (err) {
+      console.error('WorkspaceMembers fetch error:', err);
+      setError(
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Failed to load members. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMembers = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await membersWS(workspaceId);
-        setSummary(response.data.summary);
-        setMembers(response.data.members);
-      } catch (err) {
-        console.error('WorkspaceMembers fetch error:', err);
-        setError(
-          err.response?.data?.detail ||
-          err.response?.data?.message ||
-          'Failed to load members. Please try again.'
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
     if (workspaceId) {
       fetchMembers();
     }
@@ -167,6 +168,8 @@ export default function WorkspaceMembers() {
             members={filteredMembers}
             isLoading={isLoading}
             error={error}
+            workspaceId={workspaceId}
+            onMemberChanged={fetchMembers}
           />
         </div>
       </section>
@@ -174,7 +177,13 @@ export default function WorkspaceMembers() {
           return pending invites, so we show an informational empty state
           rather than fabricated data. */}
       <PendingInvitations />
-      <InviteMemberModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
+      {isInviteOpen && (
+        <InviteWorkspaceMemberModal
+          workspaceId={workspaceId}
+          onClose={() => setIsInviteOpen(false)}
+          onInvited={fetchMembers}
+        />
+      )}
     </div>
   );
 }
@@ -269,7 +278,7 @@ function Toolbar({ search, onSearchChange, activeFilter, onFilterChange }) {
   );
 }
 // ─── MEMBERS TABLE ──────────────────────────────────────────────────────────
-function MembersTable({ members, isLoading, error }) {
+function MembersTable({ members, isLoading, error, workspaceId, onMemberChanged }) {
   // Loading skeleton rows
   if (isLoading) {
     return (
@@ -344,6 +353,8 @@ function MembersTable({ members, isLoading, error }) {
                 key={member.id}
                 member={member}
                 isLast={idx === members.length - 1}
+                workspaceId={workspaceId}
+                onMemberChanged={onMemberChanged}
               />
             ))}
           </tbody>
@@ -359,7 +370,7 @@ function Th({ children, className = '' }) {
     </th>
   );
 }
-function MemberRow({ member, isLast }) {
+function MemberRow({ member, isLast, workspaceId, onMemberChanged }) {
   // Backend role is uppercase (OWNER/ADMIN/MEMBER)
   const roleKey  = normalizeRole(member.role);
   const role     = ROLE_CONFIG[roleKey] || ROLE_CONFIG.MEMBER;
@@ -431,14 +442,20 @@ function MemberRow({ member, isLast }) {
       </td>
       {/* Actions */}
       <td className="px-4 py-3.5 text-right">
-        <RowMenu memberName={member.username} />
+        <RowMenu
+          member={member}
+          workspaceId={workspaceId}
+          onMemberChanged={onMemberChanged}
+        />
       </td>
     </tr>
   );
 }
 // ─── ROW ACTIONS MENU (⋮) ───────────────────────────────────────────────────
-function RowMenu({ memberName }) {
+function RowMenu({ member, workspaceId, onMemberChanged }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
   const containerRef = useRef(null);
   useEffect(() => {
     function handlePointerDown(e) {
@@ -456,6 +473,68 @@ function RowMenu({ memberName }) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  const roleKey = normalizeRole(member.role);
+  const isOwner = roleKey === 'OWNER';
+  const isSelf = !!member.is_current_user;
+  const nextRole = roleKey === 'ADMIN' ? 'MEMBER' : 'ADMIN';
+
+  const extractError = (err) => {
+    const data = err.response?.data;
+    const errors = data?.errors;
+    if (typeof errors === 'string') return errors;
+    if (Array.isArray(errors)) return errors[0];
+    if (errors && typeof errors === 'object') {
+      const first = Object.values(errors)[0];
+      return Array.isArray(first) ? first[0] : first;
+    }
+    return data?.message || 'Something went wrong. Please try again.';
+  };
+
+  const handleChangeRole = async () => {
+    setIsBusy(true);
+    setActionError('');
+    try {
+      await changeMemberRoleWS(workspaceId, member.user_id, nextRole);
+      setIsOpen(false);
+      if (onMemberChanged) onMemberChanged();
+    } catch (err) {
+      setActionError(extractError(err));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!window.confirm(`Remove ${member.username} from this workspace?`)) {
+      return;
+    }
+    setIsBusy(true);
+    setActionError('');
+    try {
+      await removeMemberWS(workspaceId, member.user_id);
+      setIsOpen(false);
+      if (onMemberChanged) onMemberChanged();
+    } catch (err) {
+      setActionError(extractError(err));
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  if (isOwner || isSelf) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label="No actions available"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-300 dark:text-zinc-700"
+      >
+        <MoreVerticalIcon />
+      </button>
+    );
+  }
+
   return (
     <div ref={containerRef} className="relative inline-block text-left">
       <button
@@ -463,7 +542,7 @@ function RowMenu({ memberName }) {
         onClick={() => setIsOpen((p) => !p)}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        aria-label={`Actions for ${memberName}`}
+        aria-label={`Actions for ${member.username}`}
         className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
           isOpen
             ? 'bg-zinc-100 text-zinc-700 dark:bg-white/[0.08] dark:text-zinc-200'
@@ -474,32 +553,38 @@ function RowMenu({ memberName }) {
       </button>
       <div
         role="menu"
-        aria-label={`Actions for ${memberName}`}
-        className={`absolute right-0 top-[calc(100%+6px)] z-30 w-48 origin-top-right overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-[0_8px_30px_-8px_rgba(24,24,27,0.14)] backdrop-blur-xl transition-all duration-150 ease-out dark:border-white/[0.06] dark:bg-[#111218]/95 dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.55)] ${
+        aria-label={`Actions for ${member.username}`}
+        className={`absolute right-0 top-[calc(100%+6px)] z-30 w-52 origin-top-right overflow-hidden rounded-2xl border border-zinc-200/70 bg-white/95 shadow-[0_8px_30px_-8px_rgba(24,24,27,0.14)] backdrop-blur-xl transition-all duration-150 ease-out dark:border-white/[0.06] dark:bg-[#111218]/95 dark:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.55)] ${
           isOpen
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none -translate-y-1 scale-[0.98] opacity-0'
         }`}
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.06] to-transparent dark:via-white/[0.1]" />
+        {actionError && (
+          <div className="px-4 py-2.5 text-[11.5px] text-red-600 dark:text-red-400">
+            {actionError}
+          </div>
+        )}
         <div className="py-1.5">
-          {ROW_MENU_ITEMS.map((label) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50/80 dark:text-zinc-300 dark:hover:bg-white/[0.04]"
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={isBusy}
+            onClick={handleChangeRole}
+            className="flex w-full items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50/80 disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-white/[0.04]"
+          >
+            {nextRole === 'ADMIN' ? 'Make Admin' : 'Make Member'}
+          </button>
         </div>
         <div className="h-px bg-zinc-100 dark:bg-white/[0.05]" />
         <div className="py-1.5">
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+            disabled={isBusy}
+            onClick={handleRemove}
+            className="flex w-full items-center px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           >
             Remove Member
           </button>
@@ -530,114 +615,6 @@ function PendingInvitations() {
         </div>
       </div>
     </section>
-  );
-}
-// ─── INVITE MEMBER MODAL ────────────────────────────────────────────────────
-function InviteMemberModal({ isOpen, onClose }) {
-  useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape') onClose();
-    }
-    if (isOpen) document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        aria-hidden="true"
-        className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
-      />
-      {/* Panel */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Invite Member"
-        className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] dark:border-white/[0.08] dark:bg-[#111218] dark:shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)]"
-      >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-900/[0.06] to-transparent dark:via-white/[0.1]" />
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-white/[0.05]">
-          <div>
-            <p className="text-[14.5px] font-semibold text-zinc-900 dark:text-zinc-100">
-              Invite Member
-            </p>
-            <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-              Send an invitation to join this workspace.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-300"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-        {/* Form */}
-        <div className="space-y-4 px-5 py-5">
-          <label className="block">
-            <span className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
-              Email Address
-            </span>
-            <input
-              type="email"
-              placeholder="name@company.com"
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3.5 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
-              Role
-            </span>
-            <div className="relative">
-              <select
-                defaultValue="member"
-                className="h-10 w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 pr-9 text-[13.5px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
-              >
-                <option value="admin">Admin</option>
-                <option value="member">Member</option>
-                <option value="guest">Guest</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <ChevronDownIcon />
-              </div>
-            </div>
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
-              Message <span className="font-normal text-zinc-400 dark:text-zinc-500">(optional)</span>
-            </span>
-            <textarea
-              rows={3}
-              placeholder="Add a personal note to your invitation..."
-              className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
-            />
-          </label>
-        </div>
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4 dark:border-white/[0.05]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500"
-          >
-            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
-            <span className="relative">Send Invite</span>
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 // ─── ICONS ─────────────────────────────────────────────────────────────────

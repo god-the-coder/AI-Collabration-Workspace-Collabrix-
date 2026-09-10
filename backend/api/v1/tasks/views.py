@@ -2,7 +2,9 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
+
+from apps.workspaces.models import Workspace
 
 from api.v1.tasks.services import TaskActionService, TaskService
 from api.v1.tasks.serializers import CreateTaskSerializer, CreateTaskResponseSerializer
@@ -55,6 +57,13 @@ class CreateTaskAPIView(APIView):
 
     def post(self, request, workspace_id):
 
+        workspace = Workspace.objects.filter(
+            id=workspace_id
+        ).first()
+
+        if workspace is None:
+            raise NotFound("Workspace not found.")
+
         serializer = CreateTaskSerializer(
             data=request.data
         )
@@ -65,7 +74,7 @@ class CreateTaskAPIView(APIView):
 
         task = TaskService.create_task(
             user=request.user,
-            workspace_id=workspace_id,
+            workspace=workspace,
             validated_data=serializer.validated_data
         )
 

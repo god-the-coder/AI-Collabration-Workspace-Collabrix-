@@ -1,13 +1,8 @@
-import React from 'react';
-import { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { inviteMemberWS } from '../../api/workspace.api';
 
 /* ======================================================================
    InviteWorkspaceMemberModal.jsx
-
-   Presentational only — no React state, no event handlers, no open/close
-   logic, no validation. The parent that mounts this component decides
-   when it appears and will wire up submission, loading, and validation
-   later.
 
    Allowed fields only: Email Address, Role. Workspace / Owner / Token /
    Status / Expiry / Permissions Checklist / Custom Message / Bulk Invite /
@@ -17,7 +12,13 @@ import { useEffect } from 'react';
 
 const ROLE_OPTIONS = ['Member', 'Admin'];
 
-export default function InviteWorkspaceMemberModal({ onClose }) {
+export default function InviteWorkspaceMemberModal({ workspaceId, onClose, onInvited }) {
+
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('Member');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -32,6 +33,51 @@ export default function InviteWorkspaceMemberModal({ onClose }) {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose]);
+
+  const handleSubmit = async () => {
+    if (!email.trim()) {
+      setError('Email address is required.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      await inviteMemberWS(workspaceId, {
+        email: email.trim(),
+        role: role.toUpperCase(),
+      });
+
+      setSuccess(true);
+
+      if (onInvited) {
+        onInvited();
+      }
+    } catch (err) {
+      const data = err.response?.data;
+      const errors = data?.errors;
+
+      let extracted = null;
+
+      if (typeof errors === 'string') {
+        extracted = errors;
+      } else if (Array.isArray(errors)) {
+        extracted = errors[0];
+      } else if (errors && typeof errors === 'object') {
+        const firstField = Object.values(errors)[0];
+        extracted = Array.isArray(firstField) ? firstField[0] : firstField;
+      }
+
+      setError(
+        extracted ||
+        data?.message ||
+        'Failed to send invitation. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -89,70 +135,92 @@ export default function InviteWorkspaceMemberModal({ onClose }) {
 
         {/* Form */}
         <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-          {/* Email Address */}
-          <div>
-            <label htmlFor="invite-email" className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
-              Email Address <span className="text-red-500 dark:text-red-400">*</span>
-            </label>
-            <input
-              id="invite-email"
-              type="email"
-              placeholder="john@example.com"
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3.5 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
-            />
-            <p className="mt-1.5 text-[11.5px] text-zinc-400 dark:text-zinc-500">
-              Enter the email address of the person you want to invite.
-            </p>
-            {/*
-              Validation message slot — rendered conditionally once form
-              logic is wired up. Example markup for later:
 
-              <p className="mt-1.5 text-[11.5px] text-red-500 dark:text-red-400">
-                Please enter a valid email address.
-              </p>
-            */}
-          </div>
-
-          {/* Role */}
-          <div>
-            <label htmlFor="invite-role" className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
-              Role <span className="text-red-500 dark:text-red-400">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="invite-role"
-                defaultValue="Member"
-                className="h-10 w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 pr-9 text-[13.5px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
-              >
-                {ROLE_OPTIONS.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <ChevronDownIcon />
+          {success ? (
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50/80 px-3.5 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                <InfoIcon />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[12.5px] font-medium text-emerald-700 dark:text-emerald-400">
+                  Invitation sent
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-emerald-600/80 dark:text-emerald-400/70">
+                  {email.trim()} has been invited to this workspace.
+                </p>
               </div>
             </div>
-            <p className="mt-1.5 text-[11.5px] text-zinc-400 dark:text-zinc-500">
-              Choose the permissions this member will receive after accepting the invitation.
-            </p>
-          </div>
+          ) : (
+            <>
+              {error && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-[12.5px] text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
 
-          {/* Information card — flat, no gradients */}
-          <div className="flex items-start gap-3 rounded-xl border border-zinc-200/60 bg-zinc-50/80 px-3.5 py-3 dark:border-white/[0.05] dark:bg-white/[0.02]">
-            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
-              <InfoIcon />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[12.5px] font-medium text-zinc-700 dark:text-zinc-300">
-                Invitation Information
-              </p>
-              <p className="mt-1 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                The invited user will receive a secure email containing an invitation link. The invitation will automatically expire after a few days if it is not accepted.
-              </p>
-            </div>
-          </div>
+              {/* Email Address */}
+              <div>
+                <label htmlFor="invite-email" className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+                  Email Address <span className="text-red-500 dark:text-red-400">*</span>
+                </label>
+                <input
+                  id="invite-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  placeholder="john@example.com"
+                  className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3.5 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
+                />
+                <p className="mt-1.5 text-[11.5px] text-zinc-400 dark:text-zinc-500">
+                  Enter the email address of the person you want to invite.
+                </p>
+              </div>
+
+              {/* Role */}
+              <div>
+                <label htmlFor="invite-role" className="mb-1.5 block text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+                  Role <span className="text-red-500 dark:text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    id="invite-role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    disabled={loading}
+                    className="h-10 w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 pr-9 text-[13.5px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-zinc-100 dark:focus:ring-indigo-400/30"
+                  >
+                    {ROLE_OPTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <ChevronDownIcon />
+                  </div>
+                </div>
+                <p className="mt-1.5 text-[11.5px] text-zinc-400 dark:text-zinc-500">
+                  Choose the permissions this member will receive after accepting the invitation.
+                </p>
+              </div>
+
+              {/* Information card — flat, no gradients */}
+              <div className="flex items-start gap-3 rounded-xl border border-zinc-200/60 bg-zinc-50/80 px-3.5 py-3 dark:border-white/[0.05] dark:bg-white/[0.02]">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400">
+                  <InfoIcon />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[12.5px] font-medium text-zinc-700 dark:text-zinc-300">
+                    Invitation Information
+                  </p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    The invited user will receive a secure email containing an invitation link. The invitation will automatically expire after a few days if it is not accepted.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -162,28 +230,23 @@ export default function InviteWorkspaceMemberModal({ onClose }) {
             type="button"
             className="rounded-xl border border-zinc-200/70 px-4 py-2.5 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 dark:border-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/[0.05] dark:hover:text-zinc-100 dark:focus-visible:ring-indigo-400/40"
           >
-            Cancel
+            {success ? 'Close' : 'Cancel'}
           </button>
 
-          {/*
-            Idle state shown below. Once submission is wired up, swap the
-            inner <span> for a loading variant, e.g.:
-
-            <span className="relative flex items-center gap-2">
-              <Spinner /> Sending Invitation...
-            </span>
-
-            and add `disabled` + reduced opacity/cursor-not-allowed to the
-            button while in that state. The Spinner icon is defined at the
-            bottom of this file, ready to use.
-          */}
-          <button
-            type="button"
-            className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
-          >
-            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
-            <span className="relative">Send Invitation</span>
-          </button>
+          {!success && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="group/btn relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_2px_12px_-3px_rgba(79,70,229,0.35)] transition-all duration-200 hover:-translate-y-px hover:shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 active:translate-y-0 active:scale-[0.985] disabled:opacity-60 disabled:hover:translate-y-0 dark:from-indigo-500 dark:to-violet-500 dark:focus-visible:ring-indigo-400/40"
+            >
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/12 to-transparent transition-transform duration-700 group-hover/btn:translate-x-full" />
+              <span className="relative flex items-center gap-2">
+                {loading && <Spinner />}
+                {loading ? 'Sending Invitation...' : 'Send Invitation'}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </div>

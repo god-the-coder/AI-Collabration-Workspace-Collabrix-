@@ -1,8 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .serializers import RegisterSerializers, UserResponseSerializer, LoginSerializers
 from .services import AuthService
 from rest_framework import status
+from django.utils import timezone
 from apps.accounts.models import SessionsModel
 from config.settings import base
 from django.conf import settings
@@ -97,12 +99,48 @@ class LoginAPIView(APIView):
 
         return response
 
-    
-      
+
+
       except Exception as e:
          print(type(e))
          print(e)
          raise
+
+
+class LogoutAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        session_id = request.auth.get("session_id") if request.auth else None
+
+        if session_id:
+            session = SessionsModel.objects.filter(
+                id=session_id,
+                revoked_at__isnull=True,
+            ).first()
+
+            if session:
+                session.revoked_at = timezone.now()
+                session.save(update_fields=["revoked_at"])
+
+                try:
+                    from rest_framework_simplejwt.tokens import RefreshToken
+
+                    RefreshToken(session.refresh_token).blacklist()
+                except Exception:
+                    pass
+
+        response = Response(
+            {"message": "Logged out successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+
+        return response
 
 
  

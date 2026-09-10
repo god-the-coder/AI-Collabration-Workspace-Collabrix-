@@ -22,6 +22,7 @@ const PRIORITIES = [
 
 export default function CreateTaskModal({
   onClose,
+  workspaceId,
   projectId,
   assignees = [],
   milestones = [],
@@ -85,6 +86,11 @@ export default function CreateTaskModal({
       return;
     }
 
+    if (!workspaceId) {
+      setError("Missing workspace. Please close and retry.");
+      return;
+    }
+
     try {
 
       setLoading(true);
@@ -95,13 +101,17 @@ export default function CreateTaskModal({
         priority: formData.priority,
       };
 
+      if (projectId) {
+        payload.project_id = projectId;
+      }
+
       if (formData.description.trim()) {
         payload.description =
           formData.description.trim();
       }
 
       if (formData.assignee) {
-        payload.assignee =
+        payload.assignee_id =
           formData.assignee;
       }
 
@@ -111,12 +121,12 @@ export default function CreateTaskModal({
       }
 
       if (formData.milestone) {
-        payload.milestone =
+        payload.milestone_id =
           formData.milestone;
       }
 
       const response = await createTask(
-        projectId,
+        workspaceId,
         payload
       );
 

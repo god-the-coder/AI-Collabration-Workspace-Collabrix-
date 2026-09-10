@@ -1,12 +1,18 @@
 import { Navigate } from "react-router-dom";
+import useAuthStore from "../store/authStore";
 
 export default function GuestRoute({children}) {
 
-    const isAuthenticated = false;
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const isInitializing = useAuthStore((state) => state.isInitializing);
+
+    if (isInitializing) {
+        return null;
+    }
 
     return (
         isAuthenticated?
-        children:<Navigate to="/" replace />
+        <Navigate to="/dashboard" replace />:children
     )
 
 }

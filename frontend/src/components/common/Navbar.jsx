@@ -2,8 +2,15 @@
 
 
 import { useEffect, useRef, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import useAuthStore from "../../store/authStore";
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../../api/notification.api";
+import { mapNotification } from "../../utils/notifications";
 
 /* =====================================================================
    NOTIFICATIONS DATA
@@ -16,54 +23,6 @@ const CURRENT_USER = {
   email: "godninja@gmail.com",
   role: "Developer",
 };
-
-const NOTIFICATIONS = [
-  {
-    id: "n1",
-    type: "mention",
-    unread: true,
-    title: "Sarah mentioned you",
-    body: "Left a comment in API review notes — 'Ninja, can you check this endpoint?'",
-    time: "8 min ago",
-    avatar: { initials: "SK", color: "bg-violet-500" },
-  },
-  {
-    id: "n2",
-    type: "approval",
-    unread: true,
-    title: "Design spec needs approval",
-    body: "Onboarding redesign v4 is ready for your sign-off in Design Studio.",
-    time: "1 hour ago",
-    avatar: { initials: "LM", color: "bg-rose-500" },
-  },
-  {
-    id: "n3",
-    type: "assigned",
-    unread: true,
-    title: "Task assigned to you",
-    body: "Review auth error handling was assigned by Arjun in API Gateway Migration.",
-    time: "3 hours ago",
-    avatar: { initials: "AR", color: "bg-emerald-500" },
-  },
-  {
-    id: "n4",
-    type: "blocker",
-    unread: true,
-    title: "Release blocker identified",
-    body: "Critical issue found in the payment module. Blocking v2.0 release.",
-    time: "5 hours ago",
-    avatar: { initials: "PM", color: "bg-amber-500" },
-  },
-  {
-    id: "n5",
-    type: "ai",
-    unread: false,
-    title: "AI meeting summary ready",
-    body: "Your Product Sync notes have been summarised and saved to Documents.",
-    time: "Yesterday",
-    avatar: null,
-  },
-];
 
 const NOTIF_TYPE_CONFIG = {
   mention: {
@@ -197,6 +156,14 @@ function NavbarButton({ children, badge }) {
 function ProfileMenu({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
+  const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = async () => {
+    setIsOpen(false);
+    await logout();
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     function handlePointerDown(e) {
@@ -304,6 +271,7 @@ function ProfileMenu({ user }) {
           <button
             type="button"
             role="menuitem"
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
@@ -323,10 +291,32 @@ function ProfileMenu({ user }) {
 
 function NotificationMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const [items, setItems] = useState(NOTIFICATIONS);
+  const [items, setItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef(null);
 
   const unreadCount = items.filter((n) => n.unread).length;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchNotifications() {
+      try {
+        const res = await getNotifications();
+        if (!isMounted) return;
+        setItems((res.data?.notifications || []).map(mapNotification));
+      } catch (err) {
+        console.error("Failed to load notifications", err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    fetchNotifications();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     function handlePointerDown(e) {
@@ -345,12 +335,26 @@ function NotificationMenu() {
     };
   }, []);
 
-  function markAllRead() {
+  async function markAllRead() {
     setItems((prev) => prev.map((n) => ({ ...n, unread: false })));
+    try {
+      await markAllNotificationsRead();
+    } catch (err) {
+      console.error("Failed to mark all notifications read", err);
+    }
   }
 
-  function markOneRead(id) {
+  async function markOneRead(id) {
+    const target = items.find((n) => n.id === id);
+    if (!target || !target.unread) return;
+
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)));
+    try {
+      await markNotificationRead(id);
+    } catch (err) {
+      console.error("Failed to mark notification read", err);
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread: true } : n)));
+    }
   }
 
   return (
@@ -425,75 +429,94 @@ function NotificationMenu() {
 
         {/* Notification rows */}
         <div className="max-h-[420px] overflow-y-auto sm:max-h-[360px]">
-          {items.map((notif, idx) => {
-            const cfg = NOTIF_TYPE_CONFIG[notif.type] || NOTIF_TYPE_CONFIG.mention;
-            return (
-              <button
-                key={notif.id}
-                type="button"
-                role="menuitem"
-                onClick={() => markOneRead(notif.id)}
-                className={`group flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] ${
-                  idx < items.length - 1 ? "border-b border-zinc-100 dark:border-white/[0.04]" : ""
-                }`}
-              >
-                {/* Avatar + type badge */}
-                <div className="relative mt-0.5 shrink-0">
-                  {notif.avatar ? (
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white ${notif.avatar.color}`}>
-                      {notif.avatar.initials}
-                    </div>
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
-                      </svg>
-                    </div>
-                  )}
-                  <span className={`absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-white ${cfg.dot}`}>
-                    {cfg.icon}
-                  </span>
-                </div>
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-[13px] text-zinc-400 dark:text-zinc-500">
+              Loading notifications…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="px-4 py-8 text-center text-[13px] text-zinc-400 dark:text-zinc-500">
+              You're all caught up.
+            </div>
+          ) : (
+            items.map((notif, idx) => {
+              const cfg = NOTIF_TYPE_CONFIG[notif.type] || NOTIF_TYPE_CONFIG.mention;
+              return (
+                <button
+                  key={notif.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => markOneRead(notif.id)}
+                  className={`group flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] ${
+                    idx < items.length - 1 ? "border-b border-zinc-100 dark:border-white/[0.04]" : ""
+                  }`}
+                >
+                  {/* Avatar + type badge */}
+                  <div className="relative mt-0.5 shrink-0">
+                    {notif.avatar ? (
+                      notif.avatar.imageUrl ? (
+                        <img
+                          src={notif.avatar.imageUrl}
+                          alt=""
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold text-white ${notif.avatar.color}`}>
+                          {notif.avatar.initials}
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                        </svg>
+                      </div>
+                    )}
+                    <span className={`absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-white ${cfg.dot}`}>
+                      {cfg.icon}
+                    </span>
+                  </div>
 
-                {/* Text */}
-                <div className="min-w-0 flex-1">
-                  <p className={`text-[13px] leading-snug ${
-                    notif.unread
-                      ? "font-semibold text-zinc-900 dark:text-zinc-100"
-                      : "font-medium text-zinc-600 dark:text-zinc-400"
-                  }`}>
-                    {notif.title}
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-zinc-500 dark:text-zinc-500">
-                    {notif.body}
-                  </p>
-                  <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-600">
-                    {notif.time}
-                  </p>
-                </div>
+                  {/* Text */}
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-[13px] leading-snug ${
+                      notif.unread
+                        ? "font-semibold text-zinc-900 dark:text-zinc-100"
+                        : "font-medium text-zinc-600 dark:text-zinc-400"
+                    }`}>
+                      {notif.title}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-zinc-500 dark:text-zinc-500">
+                      {notif.body}
+                    </p>
+                    <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-600">
+                      {notif.time}
+                    </p>
+                  </div>
 
-                {/* Unread indicator */}
-                <div className="mt-2 shrink-0">
-                  {notif.unread
-                    ? <span className="block h-2 w-2 rounded-full bg-indigo-500" />
-                    : <span className="block h-2 w-2" />
-                  }
-                </div>
-              </button>
-            );
-          })}
+                  {/* Unread indicator */}
+                  <div className="mt-2 shrink-0">
+                    {notif.unread
+                      ? <span className="block h-2 w-2 rounded-full bg-indigo-500" />
+                      : <span className="block h-2 w-2" />
+                    }
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
 
         <div className="h-px bg-zinc-100 dark:bg-white/[0.05]" />
 
         {/* Footer */}
         <div className="px-4 py-3">
-          <button
-            type="button"
-            className="w-full rounded-xl border border-zinc-200/70 py-2 text-center text-[12.5px] font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-800 dark:border-white/[0.06] dark:text-zinc-400 dark:hover:border-white/[0.1] dark:hover:bg-white/[0.03] dark:hover:text-zinc-200"
+          <Link
+            to="/notifications"
+            onClick={() => setIsOpen(false)}
+            className="block w-full rounded-xl border border-zinc-200/70 py-2 text-center text-[12.5px] font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-800 dark:border-white/[0.06] dark:text-zinc-400 dark:hover:border-white/[0.1] dark:hover:bg-white/[0.03] dark:hover:text-zinc-200"
           >
             View all notifications
-          </button>
+          </Link>
         </div>
       </div>
     </div>

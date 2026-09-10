@@ -12,6 +12,7 @@ import CreateWorkspaceModal from './CreateWorkspaceModal';
 import { createWS } from '../../api/workspace.api';
 import useWorkSpaceStore from '../../store/wsStore';
 import { create } from 'axios';
+import Avatar from '../../components/common/Avatar';
 
 const Workspaces = () => {
 
@@ -210,15 +211,25 @@ const Workspaces = () => {
       {/* Header */}
       <div className="border-b border-zinc-100 p-5 dark:border-white/[0.05]">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
 
-            <h3 className="text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-              {workspace.name}
-            </h3>
+            <Avatar
+              src={workspace.workspace_logo}
+              initials={workspace.initials}
+              name={workspace.name}
+              size="sm"
+              rounded="rounded-xl"
+            />
 
-            <p className="mt-1 text-[12.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-              {workspace.description || "No description provided"}
-            </p>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[14px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
+                {workspace.name}
+              </h3>
+
+              <p className="mt-1 text-[12.5px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                {workspace.description || "No description provided"}
+              </p>
+            </div>
 
           </div>
 

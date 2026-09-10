@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthStore from "../../store/authStore";
+import { extractApiError } from "../../utils/apiError";
 
 export default function Register() {
 
@@ -18,15 +19,17 @@ export default function Register() {
     password: "",
     confirm_password: "",
   });
+  const [error, setError] = useState("");
 
   const handleRegister = async () => {
     try {
+      setError("");
       await register(formData);
 
       navigate("/login", { replace: true });
     }
-    catch (error) {
-      console.log(error);
+    catch (err) {
+      setError(extractApiError(err, "Could not create your account."));
     }
 
   }
@@ -112,8 +115,13 @@ export default function Register() {
                   Start collaborating with your team in minutes.
                 </p>
 
-                {/* Form (presentational only — no submit/validation logic) */}
+                {/* Form */}
                 <div className="mt-5 space-y-2.5">
+                  {error && (
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-[12.5px] text-red-600 dark:text-red-400">
+                      {error}
+                    </div>
+                  )}
                   <Field
                     label="username"
                     type="text"

@@ -1,8 +1,8 @@
 import api from "./axios";
 
-export const createTask = (ws_id) => {
-    return api.post(`v1/${ws_id}/tasks/`)
-}
+export const createTask = (workspaceId, data) => {
+    return api.post(`v1/tasks/${workspaceId}/tasks/`, data);
+};
 
 export const getGlobalTasks = () => {
     return api.get("v1/tasks/global_tasks/");

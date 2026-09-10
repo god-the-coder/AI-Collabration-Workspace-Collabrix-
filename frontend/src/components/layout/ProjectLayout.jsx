@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink, useParams } from 'react-router-dom';
 import CreateTaskModal from '../../pages/Tasks/CreateTaskModal';
 import AddProjectMembersModal from '../../pages/Projects/AddProjectMembersModal';
-import { detailedProject } from '../../api/project.api';
+import { detailedProject, updateProjectLogo } from '../../api/project.api';
+import Avatar from '../common/Avatar';
 
 // const PROJECT = {
 //   name: 'API Gateway Migration',
@@ -98,7 +99,7 @@ export default function ProjectLayout() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-6 lg:px-8">
-      <ProjectHeader project={project} />
+      <ProjectHeader project={project} setProject={setProject} />
 
       <ProjectTabs />
 
@@ -111,19 +112,57 @@ export default function ProjectLayout() {
 
 // ─── PROJECT HEADER ─────────────────────────────────────────────────────────
 
-function ProjectHeader({project}) {
+function ProjectHeader({project, setProject}) {
   const status = STATUS_CONFIG[project.status] || STATUS_CONFIG.planning;
   const priority = PRIORITY_CONFIG[project.priority] || PRIORITY_CONFIG.medium;
   const [showModal, setShowModal] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const fileInputRef = useRef(null);
   // const [showMemberModal, setShowMemberModal] = useState(false);
+
+  const handleLogoSelect = async (file) => {
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    try {
+      const resp = await updateProjectLogo(project.id, file);
+      setProject(resp.data);
+    } catch (error) {
+      console.error('Project logo upload failed:', error);
+    } finally {
+      setIsUploadingLogo(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
       {/* Identity */}
       <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-[18px] font-bold text-white sm:h-16 sm:w-16 sm:text-[20px]">
-          {project.avatar}
-        </div>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploadingLogo}
+          aria-label="Change project avatar"
+          className="group relative shrink-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 disabled:cursor-not-allowed"
+        >
+          <Avatar
+            src={project.logo}
+            initials={project.initials}
+            name={project.name}
+            size="lg"
+          />
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-black/0 text-[10px] font-medium text-white opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+            {isUploadingLogo ? '…' : 'Edit'}
+          </span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".png,.jpg,.jpeg,.svg"
+          className="hidden"
+          onChange={(e) => handleLogoSelect(e.target.files?.[0] || null)}
+        />
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-[24px]">

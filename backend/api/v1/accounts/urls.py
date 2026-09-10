@@ -1,11 +1,11 @@
 from django.urls import path
-from .views import RegisterAPIView, LoginAPIView
+from .views import RegisterAPIView, LoginAPIView, LogoutAPIView
 
 
 urlpatterns = [
     path(
-        "register/", 
-        RegisterAPIView.as_view(), 
+        "register/",
+        RegisterAPIView.as_view(),
         name="register"
     ),
 
@@ -15,6 +15,12 @@ urlpatterns = [
         name="login"
     ),
 
+    path(
+        "logout/",
+        LogoutAPIView.as_view(),
+        name="logout"
+    ),
 
-        
+
+
 ]

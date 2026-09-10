@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import CASCADE
 from apps.accounts.models import UserModel
 from apps.workspaces.models import Workspace
+from apps.files.models import File
 from common.utils.models import UUIDModel, TimeStampedModel
 
 
@@ -38,6 +39,14 @@ class Project(UUIDModel, TimeStampedModel):
         Workspace,
         on_delete=models.CASCADE,
         related_name="projects"
+    )
+
+    logo = models.ForeignKey(
+        File,
+        on_delete=models.SET_NULL,
+        related_name="projects_logo",
+        null=True,
+        blank=True
     )
 
     name = models.CharField(

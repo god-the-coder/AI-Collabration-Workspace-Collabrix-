@@ -4,9 +4,10 @@ import { NavLink, replace, useNavigate } from "react-router-dom";
 import { Navigate } from "react-router-dom";
 import useAuthStore from "../../store/authStore";
 import { useState } from "react";
+import { extractApiError } from "../../utils/apiError";
 
 export default function Login() {
-  
+
   const login = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
 
@@ -16,15 +17,17 @@ export default function Login() {
     email: "",
     password: ""
   });
+  const [error, setError] = useState("");
 
   const handleLogin = async () => {
     try {
+      setError("");
       await login(formData);
 
       navigate("/dashboard", {replace: true});
     }
-    catch (error) {
-      console.log(error);
+    catch (err) {
+      setError(extractApiError(err, "Invalid email or password."));
     }
   }
 
@@ -109,8 +112,13 @@ export default function Login() {
                   Sign in to continue to your workspace.
                 </p>
 
-                {/* Form (presentational only — no submit/validation logic) */}
+                {/* Form */}
                 <div className="mt-6 space-y-3">
+                  {error && (
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-[12.5px] text-red-600 dark:text-red-400">
+                      {error}
+                    </div>
+                  )}
                   <Field
                     label="Email Address"
                     type="email"

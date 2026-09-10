@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import {
   UserPlus,
@@ -11,7 +11,8 @@ import {
   LogOut,
 } from 'lucide-react';
 import InviteWorkspaceMemberModal from '../../pages/Workspaces/InviteWorkspaceMemberModal';
-import { localWS } from '../../api/workspace.api';
+import { localWS, leaveWorkspaceWS } from '../../api/workspace.api';
+import Avatar from '../common/Avatar';
 
 
 
@@ -99,15 +100,19 @@ function Breadcrumb({workspace}) {
 
 function WorkspaceHeader({workspace}) {
 
+  const { workspaceId } = useParams();
   const [showModal, setShowModal] = useState(false);
 
   return (
     <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
       {/* Identity */}
       <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-[18px] font-bold text-white sm:h-16 sm:w-16 sm:text-[20px]">
-          {workspace?.avatar}
-        </div>
+        <Avatar
+          src={workspace?.logo}
+          initials={workspace?.initials}
+          name={workspace?.name}
+          size="lg"
+        />
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-[24px]">
@@ -143,10 +148,13 @@ function WorkspaceHeader({workspace}) {
         </button>
 
         {showModal && (
-          <InviteWorkspaceMemberModal onClose={() => setShowModal(false)} />
+          <InviteWorkspaceMemberModal
+            workspaceId={workspaceId}
+            onClose={() => setShowModal(false)}
+          />
         )}
 
-        <OverflowMenu />
+        <OverflowMenu workspaceId={workspaceId} />
       </div>
     </div>
   );
@@ -156,9 +164,33 @@ function WorkspaceHeader({workspace}) {
 // Minimal open/close interaction only — mirrors the ProfileMenu / NotificationMenu
 // convention already used elsewhere in the app. No business logic wired up.
 
-function OverflowMenu() {
+function OverflowMenu({ workspaceId }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const containerRef = useRef(null);
+  const navigate = useNavigate();
+
+  const handleLeave = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to leave this workspace? You will lose access to its projects, tasks, and files.'
+    );
+    if (!confirmed) return;
+
+    setIsLeaving(true);
+    try {
+      await leaveWorkspaceWS(workspaceId);
+      setIsOpen(false);
+      navigate('/workspaces');
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors ||
+        'Failed to leave workspace. Please try again.';
+      window.alert(typeof message === 'string' ? message : 'Failed to leave workspace. Please try again.');
+    } finally {
+      setIsLeaving(false);
+    }
+  };
 
   useEffect(() => {
     function handlePointerDown(e) {
@@ -225,12 +257,14 @@ function OverflowMenu() {
           <button
             type="button"
             role="menuitem"
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+            disabled={isLeaving}
+            onClick={handleLeave}
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-medium text-zinc-700 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
               <LogOut size={15} />
             </span>
-            Leave Workspace
+            {isLeaving ? 'Leaving…' : 'Leave Workspace'}
           </button>
         </div>
       </div>
